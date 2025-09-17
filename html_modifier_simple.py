@@ -168,26 +168,28 @@ class HTMLModifier:
             
             themes_list = []
             for theme in unit['themes']:
-                theme_item = f'''
-                    <li class="nav__menu--theme">
-                        <a href="../{unit_name}/{unit_name}/{theme['themeURL']}/1.html">
-                            {theme['themeName']}
-                        </a>
-                    </li>'''
+                theme_item = f'''                        <li class="nav__menu--theme">
+                            <a href="../{unit_name}/{unit_name}/{theme['themeURL']}/1.html">
+                                {theme['themeName']}
+                            </a>
+                        </li>'''
                 themes_list.append(theme_item)
             
-            unit_item = f'''
-                <li class="nav__menu--item {active_class}">
+            # Unir los temas directamente sin espacios extra
+            themes_html = ''.join(themes_list) if themes_list else ''
+            
+            unit_item = f'''                <li class="nav__menu--item {active_class}">
                     <a class="nav__menu__item--link" href="../{unit_name}/{unit_name}/t1/1.html">
                         <span>{unit_name.upper()}</span>
                     </a>
-                    <ul class="nav__menu--themes">
-                        {"".join(themes_list)}
+                    <ul class="nav__menu--themes">{themes_html}
                     </ul>
                 </li>'''
             menu_items.append(unit_item)
         
-        return f'<ul class="nav__menu--units">{"".join(menu_items)}</ul>'
+        return f'''            <ul class="nav__menu--units">
+{chr(10).join(menu_items)}
+            </ul>'''
     
     def replace_nav_menu(self, html_content, subject, current_unit, unit_themes):
         """Reemplaza el nav__menu existente con el nuevo menú de unidades"""
@@ -269,18 +271,86 @@ class HTMLModifier:
             
         # Si es la última página de la última unidad, no hay siguiente
         return None
+
+    def calculate_previous_navigation(self, current_path, unit_themes):
+        """Calcula la navegación anterior basada en la estructura de temas"""
+        path_parts = current_path.parts
+        
+        # Extraer información del path actual
+        file_name = path_parts[-1]
+        current_theme = path_parts[-2]
+        current_unit = path_parts[-3]
+        
+        try:
+            current_page = int(file_name.replace('.html', ''))
+        except ValueError:
+            return None
+        
+        # Encontrar la unidad actual en unit_themes
+        current_unit_data = None
+        for unit in unit_themes:
+            if unit['unit'] == current_unit:
+                current_unit_data = unit
+                break
+                
+        if not current_unit_data:
+            return None
+            
+        # Encontrar el tema actual
+        current_theme_data = None
+        current_theme_index = -1
+        for i, theme in enumerate(current_unit_data['themes']):
+            if theme['themeURL'] == current_theme:
+                current_theme_data = theme
+                current_theme_index = i
+                break
+                
+        if not current_theme_data:
+            return None
+        
+        # Si no es la primera página del tema, ir a la página anterior
+        if current_page > 1:
+            return f"{current_page - 1}.html"
+            
+        # Si es la primera página del tema, ir al tema anterior
+        if current_theme_index > 0:
+            prev_theme = current_unit_data['themes'][current_theme_index - 1]
+            try:
+                prev_theme_max_pages = int(prev_theme['pages'])
+                return f"../{prev_theme['themeURL']}/{prev_theme_max_pages}.html"
+            except ValueError:
+                return f"../{prev_theme['themeURL']}/1.html"
+            
+        # Si es el primer tema de la unidad, ir a la unidad anterior
+        current_unit_index = -1
+        for i, unit in enumerate(unit_themes):
+            if unit['unit'] == current_unit:
+                current_unit_index = i
+                break
+                
+        if current_unit_index > 0:
+            prev_unit = unit_themes[current_unit_index - 1]
+            last_theme = prev_unit['themes'][-1]
+            try:
+                last_theme_max_pages = int(last_theme['pages'])
+                return f"../../{prev_unit['unit']}/{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
+            except ValueError:
+                return f"../../{prev_unit['unit']}/{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
+            
+        # Si es la primera página de la primera unidad, no hay anterior
+        return None
     
     def fix_content_navigation(self, html_content, current_path, unit_themes):
         """Arregla la navegación de las flechas"""
         if not unit_themes:
             return html_content
             
+        # Calcular navegación siguiente y anterior
         next_path = self.calculate_next_navigation(current_path, unit_themes)
+        prev_path = self.calculate_previous_navigation(current_path, unit_themes)
+        
+        # Actualizar flecha derecha (siguiente)
         if next_path:
-            # Usar escape para evitar problemas con números en el path
-            escaped_next_path = re.escape(next_path)
-            
-            # Buscar y reemplazar el data-link de la flecha derecha
             right_arrow_pattern = r'(<a class="course__content__nav--right"[^>]*data-link=")[^"]*(")'
             replacement = f'\\g<1>{next_path}\\g<2>'
             html_content = re.sub(right_arrow_pattern, replacement, html_content)
@@ -289,6 +359,23 @@ class HTMLModifier:
             href_pattern = r'(<a class="course__content__nav--right"[^>]*href=")[^"]*(")'
             href_replacement = f'\\g<1>{next_path}\\g<2>'
             html_content = re.sub(href_pattern, href_replacement, html_content)
+        
+        # Actualizar flecha izquierda (anterior)
+        if prev_path:
+            left_arrow_pattern = r'(<a class="course__content__nav--left"[^>]*data-link=")[^"]*(")'
+            left_replacement = f'\\g<1>{prev_path}\\g<2>'
+            html_content = re.sub(left_arrow_pattern, left_replacement, html_content)
+            
+            # También actualizar href si existe
+            left_href_pattern = r'(<a class="course__content__nav--left"[^>]*href=")[^"]*(")'
+            left_href_replacement = f'\\g<1>{prev_path}\\g<2>'
+            html_content = re.sub(left_href_pattern, left_href_replacement, html_content)
+            
+            # Remover clase hidden si existe
+            html_content = re.sub(r'class="course__content__nav--left hidden"', 'class="course__content__nav--left"', html_content)
+        else:
+            # Si no hay navegación anterior, agregar clase hidden
+            html_content = re.sub(r'class="course__content__nav--left"', 'class="course__content__nav--left hidden"', html_content)
         
         return html_content
     
@@ -305,8 +392,8 @@ class HTMLModifier:
             link_match = re.search(link_pattern, html_content, re.DOTALL)
             
             if link_match:
-                # Crear iframe
-                full_url = f"{moodle_url}{activity['url']}{activity['id']}?theme=photo"
+                # Crear iframe con URL correcta
+                full_url = f"{moodle_url}{activity['url']}{activity['id']}&theme=photo"
                 iframe = f'''<iframe src="{full_url}" width="100%" height="600" style="border: none;" title="{id_html}"></iframe>'''
                 
                 # Reemplazar el enlace con el iframe
