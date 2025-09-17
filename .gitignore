@@ -1,0 +1,17 @@
+# Archivos temporales
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# Archivos de respaldo
+*.bak
+*.backup
+
+# Carpetas temporales
+temp/
+tmp/
+
+# Archivos de log
+*.log
