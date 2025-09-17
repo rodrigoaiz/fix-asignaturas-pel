@@ -169,7 +169,7 @@ class HTMLModifier:
             themes_list = []
             for theme in unit['themes']:
                 theme_item = f'''                        <li class="nav__menu--theme">
-                            <a href="/{subject}/{unit_name}/{theme['themeURL']}/1.html">
+                            <a href="{subject}/{unit_name}/{theme['themeURL']}/1.html">
                                 {theme['themeName']}
                             </a>
                         </li>'''
@@ -179,7 +179,7 @@ class HTMLModifier:
             themes_html = ''.join(themes_list) if themes_list else ''
             
             unit_item = f'''                <li class="nav__menu--item {active_class}">
-                    <a class="nav__menu__item--link" href="/{subject}/{unit_name}/t1/1.html">
+                    <a class="nav__menu__item--link" href="{subject}/{unit_name}/t1/1.html">
                         <span>{unit_name.upper()}</span>
                     </a>
                     <ul class="nav__menu--themes">{themes_html}
@@ -264,12 +264,12 @@ class HTMLModifier:
         
         # Si no es la última página del tema, ir a la siguiente página (ruta absoluta)
         if current_page < max_pages:
-            return f"/{subject}/{current_unit}/{current_theme}/{current_page + 1}.html"
+            return f"{subject}/{current_unit}/{current_theme}/{current_page + 1}.html"
             
         # Si es la última página del tema, ir al siguiente tema (ruta absoluta)
         if current_theme_index < len(current_unit_data['themes']) - 1:
             next_theme = current_unit_data['themes'][current_theme_index + 1]
-            return f"/{subject}/{current_unit}/{next_theme['themeURL']}/1.html"
+            return f"{subject}/{current_unit}/{next_theme['themeURL']}/1.html"
             
         # Si es el último tema de la unidad, ir a la siguiente unidad (ruta absoluta)
         current_unit_index = -1
@@ -280,7 +280,7 @@ class HTMLModifier:
                 
         if current_unit_index >= 0 and current_unit_index < len(unit_themes) - 1:
             next_unit = unit_themes[current_unit_index + 1]
-            return f"/{subject}/{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
+            return f"{subject}/{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
             
         # Si es la última página de la última unidad, no hay siguiente
         return None
@@ -327,16 +327,16 @@ class HTMLModifier:
         
         # Si no es la primera página del tema, ir a la página anterior (ruta absoluta)
         if current_page > 1:
-            return f"/{subject}/{current_unit}/{current_theme}/{current_page - 1}.html"
+            return f"{subject}/{current_unit}/{current_theme}/{current_page - 1}.html"
             
         # Si es la primera página del tema, ir al tema anterior (ruta absoluta)
         if current_theme_index > 0:
             prev_theme = current_unit_data['themes'][current_theme_index - 1]
             try:
                 prev_theme_max_pages = int(prev_theme['pages'])
-                return f"/{subject}/{current_unit}/{prev_theme['themeURL']}/{prev_theme_max_pages}.html"
+                return f"{subject}/{current_unit}/{prev_theme['themeURL']}/{prev_theme_max_pages}.html"
             except ValueError:
-                return f"/{subject}/{current_unit}/{prev_theme['themeURL']}/1.html"
+                return f"{subject}/{current_unit}/{prev_theme['themeURL']}/1.html"
             
         # Si es el primer tema de la unidad, ir a la unidad anterior (ruta absoluta)
         current_unit_index = -1
@@ -350,9 +350,9 @@ class HTMLModifier:
             last_theme = prev_unit['themes'][-1]
             try:
                 last_theme_max_pages = int(last_theme['pages'])
-                return f"/{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
+                return f"{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
             except ValueError:
-                return f"/{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
+                return f"{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
             
         # Si es la primera página de la primera unidad, no hay anterior
         return None
