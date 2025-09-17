@@ -158,8 +158,8 @@ class HTMLModifier:
         
         return html_content
     
-    def generate_units_menu(self, subject, current_unit, unit_themes):
-        """Genera el nuevo menú de navegación por unidades"""
+    def generate_units_menu(self, current_unit, current_theme, unit_themes):
+        """Genera el nuevo menú de navegación por unidades con rutas relativas"""
         menu_items = []
         
         for unit in unit_themes:
@@ -168,8 +168,21 @@ class HTMLModifier:
             
             themes_list = []
             for theme in unit['themes']:
+                # Calcular ruta relativa desde la página actual hacia este tema
+                if unit_name == current_unit:
+                    # Misma unidad, solo cambiar tema
+                    if theme['themeURL'] == current_theme:
+                        # Mismo tema, mantener página actual
+                        relative_path = "1.html"  # Por defecto ir a la primera página
+                    else:
+                        # Diferente tema en la misma unidad
+                        relative_path = f"../{theme['themeURL']}/1.html"
+                else:
+                    # Diferente unidad
+                    relative_path = f"../../{unit_name}/{theme['themeURL']}/1.html"
+                
                 theme_item = f'''                        <li class="nav__menu--theme">
-                            <a href="{subject}/{unit_name}/{theme['themeURL']}/1.html">
+                            <a href="{relative_path}">
                                 {theme['themeName']}
                             </a>
                         </li>'''
@@ -178,8 +191,14 @@ class HTMLModifier:
             # Unir los temas directamente sin espacios extra
             themes_html = ''.join(themes_list) if themes_list else ''
             
+            # Ruta relativa para el enlace principal de la unidad
+            if unit_name == current_unit:
+                unit_relative_path = "../t1/1.html"  # Ir al primer tema de la unidad actual
+            else:
+                unit_relative_path = f"../../{unit_name}/t1/1.html"  # Ir a otra unidad
+            
             unit_item = f'''                <li class="nav__menu--item {active_class}">
-                    <a class="nav__menu__item--link" href="{subject}/{unit_name}/t1/1.html">
+                    <a class="nav__menu__item--link" href="{unit_relative_path}">
                         <span>{unit_name.upper()}</span>
                     </a>
                     <ul class="nav__menu--themes">{themes_html}
@@ -191,7 +210,7 @@ class HTMLModifier:
 {chr(10).join(menu_items)}
             </ul>'''
     
-    def replace_nav_menu(self, html_content, subject, current_unit, unit_themes):
+    def replace_nav_menu(self, html_content, current_unit, current_theme, unit_themes):
         """Reemplaza el nav__menu existente con el nuevo menú de unidades"""
         if not unit_themes:
             return html_content
@@ -202,7 +221,7 @@ class HTMLModifier:
         
         if nav_menu_match:
             opening_tag, old_content, closing_tag = nav_menu_match.groups()
-            new_menu_html = self.generate_units_menu(subject, current_unit, unit_themes)
+            new_menu_html = self.generate_units_menu(current_unit, current_theme, unit_themes)
             new_nav_menu = opening_tag + new_menu_html + closing_tag
             html_content = html_content.replace(nav_menu_match.group(0), new_nav_menu)
         
@@ -211,10 +230,13 @@ class HTMLModifier:
     def get_subject_from_path(self, current_path):
         """Extrae el nombre del subject desde la ruta del archivo"""
         path_parts = current_path.parts
-        # Buscar la parte que contiene el subject (derecho-1, mate3, etc.)
+        # Buscar cualquier carpeta que contenga subcarpetas con patrón u1, u2, etc.
         for i, part in enumerate(path_parts):
-            if part in ['derecho-1', 'mate3'] or part.startswith('derecho') or part.startswith('mate'):
-                return part
+            # Si encontramos una carpeta que parece ser una unidad (u1, u2, etc.)
+            if part.startswith('u') and len(part) >= 2 and part[1:].isdigit():
+                # El subject sería la carpeta anterior a esta
+                if i > 0:
+                    return path_parts[i-1]
         return None
     
     def calculate_next_navigation(self, current_path, unit_themes):
@@ -262,16 +284,16 @@ class HTMLModifier:
         except ValueError:
             return None
         
-        # Si no es la última página del tema, ir a la siguiente página (ruta absoluta)
+        # Si no es la última página del tema, ir a la siguiente página (ruta relativa)
         if current_page < max_pages:
-            return f"{subject}/{current_unit}/{current_theme}/{current_page + 1}.html"
+            return f"{current_page + 1}.html"
             
-        # Si es la última página del tema, ir al siguiente tema (ruta absoluta)
+        # Si es la última página del tema, ir al siguiente tema (ruta relativa)
         if current_theme_index < len(current_unit_data['themes']) - 1:
             next_theme = current_unit_data['themes'][current_theme_index + 1]
-            return f"{subject}/{current_unit}/{next_theme['themeURL']}/1.html"
+            return f"../{next_theme['themeURL']}/1.html"
             
-        # Si es el último tema de la unidad, ir a la siguiente unidad (ruta absoluta)
+        # Si es el último tema de la unidad, ir a la siguiente unidad (ruta relativa)
         current_unit_index = -1
         for i, unit in enumerate(unit_themes):
             if unit['unit'] == current_unit:
@@ -280,7 +302,7 @@ class HTMLModifier:
                 
         if current_unit_index >= 0 and current_unit_index < len(unit_themes) - 1:
             next_unit = unit_themes[current_unit_index + 1]
-            return f"{subject}/{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
+            return f"../../{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
             
         # Si es la última página de la última unidad, no hay siguiente
         return None
@@ -325,20 +347,20 @@ class HTMLModifier:
         if not current_theme_data:
             return None
         
-        # Si no es la primera página del tema, ir a la página anterior (ruta absoluta)
+        # Si no es la primera página del tema, ir a la página anterior (ruta relativa)
         if current_page > 1:
-            return f"{subject}/{current_unit}/{current_theme}/{current_page - 1}.html"
+            return f"{current_page - 1}.html"
             
-        # Si es la primera página del tema, ir al tema anterior (ruta absoluta)
+        # Si es la primera página del tema, ir al tema anterior (ruta relativa)
         if current_theme_index > 0:
             prev_theme = current_unit_data['themes'][current_theme_index - 1]
             try:
                 prev_theme_max_pages = int(prev_theme['pages'])
-                return f"{subject}/{current_unit}/{prev_theme['themeURL']}/{prev_theme_max_pages}.html"
+                return f"../{prev_theme['themeURL']}/{prev_theme_max_pages}.html"
             except ValueError:
-                return f"{subject}/{current_unit}/{prev_theme['themeURL']}/1.html"
+                return f"../{prev_theme['themeURL']}/1.html"
             
-        # Si es el primer tema de la unidad, ir a la unidad anterior (ruta absoluta)
+        # Si es el primer tema de la unidad, ir a la unidad anterior (ruta relativa)
         current_unit_index = -1
         for i, unit in enumerate(unit_themes):
             if unit['unit'] == current_unit:
@@ -350,9 +372,9 @@ class HTMLModifier:
             last_theme = prev_unit['themes'][-1]
             try:
                 last_theme_max_pages = int(last_theme['pages'])
-                return f"{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
+                return f"../../{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
             except ValueError:
-                return f"{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
+                return f"../../{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
             
         # Si es la primera página de la primera unidad, no hay anterior
         return None
@@ -437,6 +459,7 @@ class HTMLModifier:
                 
             unit_index = unit_indices[0]
             current_unit = path_parts[unit_index]
+            current_theme = path_parts[unit_index + 1] if unit_index + 1 < len(path_parts) else 't1'
             subject_path = Path(*path_parts[:unit_index])
             
             # Cargar configuración para esta unidad
@@ -446,7 +469,7 @@ class HTMLModifier:
             html_content = self.remove_breadcrumb_links(html_content)
             
             if unit_themes:
-                html_content = self.replace_nav_menu(html_content, subject, current_unit, unit_themes)
+                html_content = self.replace_nav_menu(html_content, current_unit, current_theme, unit_themes)
                 html_content = self.fix_content_navigation(html_content, file_path, unit_themes)
                 
             if moodle_activities and moodle_url:
