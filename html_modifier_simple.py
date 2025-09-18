@@ -159,33 +159,18 @@ class HTMLModifier:
         return html_content
     
     def generate_units_menu(self, subject, current_unit, current_theme, unit_themes):
-        """Genera el nuevo menú de navegación por unidades con rutas absolutas"""
+        """Genera el nuevo menú de navegación por unidades simplificado (solo botones U1, U2, etc.)"""
         menu_items = []
         
         for unit in unit_themes:
             unit_name = unit['unit']
             active_class = 'nav__menu--item--active' if unit_name == current_unit else ''
             
-            themes_list = []
-            for theme in unit['themes']:
-                # Rutas absolutas para todos los enlaces
-                theme_item = f'''                        <li class="nav__menu--theme">
-                            <a href="/{subject}/{unit_name}/{theme['themeURL']}/1.html">
-                                {theme['themeName']}
-                            </a>
-                        </li>'''
-                themes_list.append(theme_item)
-            
-            # Unir los temas directamente sin espacios extra
-            themes_html = ''.join(themes_list) if themes_list else ''
-            
-            # Ruta absoluta para el enlace principal de la unidad
+            # Solo crear botón simple para cada unidad sin lista desplegable de temas
             unit_item = f'''                <li class="nav__menu--item {active_class}">
                     <a class="nav__menu__item--link" href="/{subject}/{unit_name}/t1/1.html">
                         <span>{unit_name.upper()}</span>
                     </a>
-                    <ul class="nav__menu--themes">{themes_html}
-                    </ul>
                 </li>'''
             menu_items.append(unit_item)
         
