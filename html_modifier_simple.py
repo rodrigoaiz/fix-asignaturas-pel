@@ -158,17 +158,35 @@ class HTMLModifier:
         
         return html_content
     
-    def generate_units_menu(self, subject, current_unit, current_theme, unit_themes):
+    def generate_units_menu(self, subject, current_unit, current_theme, unit_themes, current_path):
         """Genera el nuevo menú de navegación por unidades simplificado (solo botones U1, U2, etc.)"""
         menu_items = []
+        
+        # Obtener la profundidad actual del archivo para calcular rutas relativas
+        path_parts = current_path.parts
+        # Encontrar la posición de la unidad actual en el path
+        current_unit_index = None
+        for i, part in enumerate(path_parts):
+            if part == current_unit:
+                current_unit_index = i
+                break
         
         for unit in unit_themes:
             unit_name = unit['unit']
             active_class = 'nav__menu--item--active' if unit_name == current_unit else ''
             
+            # Calcular ruta relativa hacia la unidad destino
+            if current_unit_index is not None:
+                # Calcular cuántos niveles subir (..)
+                levels_up = len(path_parts) - current_unit_index - 1
+                relative_path = '../' * levels_up + f'{unit_name}/t1/1.html'
+            else:
+                # Fallback a ruta relativa simple
+                relative_path = f'../../{unit_name}/t1/1.html'
+            
             # Solo crear botón simple para cada unidad sin lista desplegable de temas
             unit_item = f'''                <li class="nav__menu--item {active_class}">
-                    <a class="nav__menu__item--link" href="/{subject}/{unit_name}/t1/1.html">
+                    <a class="nav__menu__item--link" href="{relative_path}">
                         <span>{unit_name.upper()}</span>
                     </a>
                 </li>'''
@@ -178,7 +196,7 @@ class HTMLModifier:
 {chr(10).join(menu_items)}
             </ul>'''
     
-    def replace_nav_menu(self, html_content, subject, current_unit, current_theme, unit_themes):
+    def replace_nav_menu(self, html_content, subject, current_unit, current_theme, unit_themes, current_path):
         """Reemplaza el nav__menu existente con el nuevo menú de unidades"""
         if not unit_themes:
             return html_content
@@ -189,7 +207,7 @@ class HTMLModifier:
         
         if nav_menu_match:
             opening_tag, old_content, closing_tag = nav_menu_match.groups()
-            new_menu_html = self.generate_units_menu(subject, current_unit, current_theme, unit_themes)
+            new_menu_html = self.generate_units_menu(subject, current_unit, current_theme, unit_themes, current_path)
             new_nav_menu = opening_tag + new_menu_html + closing_tag
             html_content = html_content.replace(nav_menu_match.group(0), new_nav_menu)
         
@@ -440,7 +458,7 @@ class HTMLModifier:
             html_content = self.remove_breadcrumb_links(html_content)
             
             if unit_themes:
-                html_content = self.replace_nav_menu(html_content, subject, current_unit, current_theme, unit_themes)
+                html_content = self.replace_nav_menu(html_content, subject, current_unit, current_theme, unit_themes, file_path)
                 html_content = self.fix_content_navigation(html_content, file_path, unit_themes)
                 
             if moodle_activities and moodle_url:
