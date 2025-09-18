@@ -384,6 +384,15 @@ class HTMLModifier:
             href_pattern = r'(<a class="course__content__nav--right"[^>]*href=")[^"]*(")'
             href_replacement = f'\\g<1>{next_path}\\g<2>'
             html_content = re.sub(href_pattern, href_replacement, html_content)
+            
+            # Remover clase hidden si existe
+            html_content = re.sub(r'class="course__content__nav--right hidden"', 'class="course__content__nav--right"', html_content)
+        else:
+            # Si no hay navegación siguiente, agregar clase hidden y limpiar enlace
+            html_content = re.sub(r'class="course__content__nav--right"', 'class="course__content__nav--right hidden"', html_content)
+            # Limpiar datos-link y href de enlaces antiguos
+            html_content = re.sub(r'(<a class="course__content__nav--right[^"]*"[^>]*data-link=")[^"]*(")', r'\g<1>\g<2>', html_content)
+            html_content = re.sub(r'(<a class="course__content__nav--right[^"]*"[^>]*href=")[^"]*(")', r'\g<1>\g<2>', html_content)
         
         # Actualizar flecha izquierda (anterior)
         if prev_path:
@@ -399,8 +408,11 @@ class HTMLModifier:
             # Remover clase hidden si existe
             html_content = re.sub(r'class="course__content__nav--left hidden"', 'class="course__content__nav--left"', html_content)
         else:
-            # Si no hay navegación anterior, agregar clase hidden
+            # Si no hay navegación anterior, agregar clase hidden y limpiar enlace
             html_content = re.sub(r'class="course__content__nav--left"', 'class="course__content__nav--left hidden"', html_content)
+            # Limpiar datos-link y href de enlaces antiguos
+            html_content = re.sub(r'(<a class="course__content__nav--left[^"]*"[^>]*data-link=")[^"]*(")', r'\g<1>\g<2>', html_content)
+            html_content = re.sub(r'(<a class="course__content__nav--left[^"]*"[^>]*href=")[^"]*(")', r'\g<1>\g<2>', html_content)
         
         return html_content
     
