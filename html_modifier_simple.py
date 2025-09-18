@@ -279,7 +279,7 @@ class HTMLModifier:
             next_theme = current_unit_data['themes'][current_theme_index + 1]
             return f"{current_unit}/{next_theme['themeURL']}/1.html"
             
-        # Si es el último tema de la unidad, ir a la siguiente unidad (ruta absoluta)
+        # Si es el último tema de la unidad, ir a la siguiente unidad (ruta relativa simple)
         current_unit_index = -1
         for i, unit in enumerate(unit_themes):
             if unit['unit'] == current_unit:
@@ -288,7 +288,7 @@ class HTMLModifier:
                 
         if current_unit_index >= 0 and current_unit_index < len(unit_themes) - 1:
             next_unit = unit_themes[current_unit_index + 1]
-            return f"/{subject}/{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
+            return f"{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
             
         # Si es la última página de la última unidad, no hay siguiente
         return None
@@ -346,7 +346,7 @@ class HTMLModifier:
             except ValueError:
                 return f"{current_unit}/{prev_theme['themeURL']}/1.html"
             
-        # Si es el primer tema de la unidad, ir a la unidad anterior (ruta absoluta)
+        # Si es el primer tema de la unidad, ir a la unidad anterior (ruta relativa)
         current_unit_index = -1
         for i, unit in enumerate(unit_themes):
             if unit['unit'] == current_unit:
@@ -358,9 +358,9 @@ class HTMLModifier:
             last_theme = prev_unit['themes'][-1]
             try:
                 last_theme_max_pages = int(last_theme['pages'])
-                return f"/{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
+                return f"{prev_unit['unit']}/{last_theme['themeURL']}/{last_theme_max_pages}.html"
             except ValueError:
-                return f"/{subject}/{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
+                return f"{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
             
         # Si es la primera página de la primera unidad, no hay anterior
         return None
