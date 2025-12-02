@@ -167,8 +167,8 @@ class FolderReorganizer:
                 print(f"    ERROR procesando {html_file}: {e}")
 
 def main():
-    # Directorio base
-    base_path = Path("/home/rodrigo-aizpuru/Descargas/fixeo")
+    # Directorio base - directorio donde está el script
+    base_path = Path(__file__).parent.resolve()
     
     reorganizer = FolderReorganizer()
     
