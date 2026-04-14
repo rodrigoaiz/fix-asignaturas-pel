@@ -10,6 +10,8 @@ Los scripts automatizan las siguientes modificaciones:
 2. **Navegación corregida**: Arregla las flechas de navegación `course__content__nav` para continuar correctamente al siguiente tema/unidad
 3. **Nuevo menú de navegación**: Reemplaza `nav__menu` con un menú que navegue por unidades basado en `activities_moodle.js`
 4. **Conversión de actividades**: Cambia enlaces de actividades a iframes con `?theme=photo`
+5. **Fix URLs estáticas de Moodle** (nuevo): Limpia URLs hardcodeadas de Moodle en flechas de navegación cuando no hay página siguiente/anterior (ej. última página de la última unidad)
+6. **Arreglo de rutas CSS/JS** (nuevo): Corrige rutas `../../assets/` → `../assets/` tras reorganización de carpetas
 
 ## Scripts disponibles
 
@@ -23,6 +25,11 @@ Los scripts automatizan las siguientes modificaciones:
 - ✅ Conversión automática de actividades a iframes
 - ✅ Solo usa librerías estándar de Python
 - ✅ Manejo robusto de errores
+- ✅ Regex compilados como constantes (más eficiente)
+- ✅ Caché de configuración por unidad (lee `activities_moodle.js` una sola vez)
+- ✅ Una sola pasada de lectura/escritura por archivo
+- ✅ Modo `--dry-run` para previsualizar cambios sin modificar archivos
+- ✅ Fix de URLs estáticas de Moodle en saltos de unidad
 
 **Uso**:
 ```bash

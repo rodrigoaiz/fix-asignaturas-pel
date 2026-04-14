@@ -15,3 +15,6 @@ tmp/
 
 # Archivos de log
 *.log
+
+# Carpeta de output (asignaturas reparadas)
+out/
