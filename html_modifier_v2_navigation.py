@@ -1,0 +1,720 @@
+#!/usr/bin/env python3
+"""
+Script para realizar cambios masivos en archivos HTML de las asignaturas
+Realiza las siguientes modificaciones:
+1. Quita las ligas del breadcrumb course__header--breadcrumb
+2. Arregla la navegación course__content__nav para continuar correctamente
+3. Reemplaza nav__menu con un menú que navegue por unidades
+4. Convierte actividades de ligas a iframes con ?theme=photo
+5. Limpia URLs estáticas de Moodle en flechas de navegación (bug fix)
+
+Versión optimizada: regex compilados, caché de config, una sola pasada I/O
+Output independiente: los archivos originales NO se modifican, se copia todo a out/
+"""
+
+import os
+import re
+import json
+import sys
+import shutil
+from pathlib import Path
+
+
+class HTMLModifier:
+    # ── Compiled regex patterns (efficiency) ──
+    RE_BREADCRUMB = re.compile(
+        r'(<p class="course__header--breadcrumb">)(.*?)(</p>)', re.DOTALL
+    )
+    RE_BREADCRUMB_LINK = re.compile(r'<a[^>]*>([^<]*)</a>')
+    RE_NAV_MENU = re.compile(
+        r'(<div class="nav__menu">)(.*?)(</div>)', re.DOTALL
+    )
+    RE_UNIT_PATTERN = re.compile(r'^u\d+$')
+
+    # Navigation patterns (flexible class matching to handle "hidden" suffix)
+    RE_RIGHT_DATA_LINK = re.compile(
+        r'(<a\s+[^>]*class="[^"]*course__content__nav--right[^"]*"[^>]*data-link=")[^"]*(")'
+    )
+    RE_RIGHT_HREF = re.compile(
+        r'(<a\s+[^>]*class="[^"]*course__content__nav--right[^"]*"[^>]*href=")[^"]*(")'
+    )
+    RE_LEFT_DATA_LINK = re.compile(
+        r'(<a\s+[^>]*class="[^"]*course__content__nav--left[^"]*"[^>]*data-link=")[^"]*(")'
+    )
+    RE_LEFT_HREF = re.compile(
+        r'(<a\s+[^>]*class="[^"]*course__content__nav--left[^"]*"[^>]*href=")[^"]*(")'
+    )
+
+    # Moodle static URL detection
+    RE_MOODLE_URL = re.compile(r'https?://[\w.]+/papiit/cch/')
+
+    # JS config extraction
+    RE_UNIT_THEMES = re.compile(
+        r'export const unit_themes\s*=\s*(\[[\s\S]*?\n\];)'
+    )
+    RE_MOODLE_ACTIVITIES = re.compile(
+        r'export const moodleActivities\s*=\s*(\[[\s\S]*?\n\];)'
+    )
+    RE_MOODLE_URL = re.compile(r'moodleURL:\s*["\']([^"\']*)["\']')
+    RE_UNIT_IN_JS = re.compile(
+        r'\{\s*unit:\s*["\']([^"\']*)["\'],\s*themes:\s*\[([\s\S]*?)\]\s*\}'
+    )
+    RE_THEME_IN_JS = re.compile(
+        r'\{\s*themeName:\s*["\']([^"\']*)["\'],\s*themeURL:\s*["\']([^"\']*)["\'],\s*pages:\s*["\']([^"\']*)["\']'
+    )
+    RE_ACTIVITY_IN_JS = re.compile(
+        r'\{\s*idHTML:\s*["\']([^"\']*)["\'],\s*url:\s*["\']([^"\']*)["\'],\s*id:\s*["\']([^"\']*)["\']'
+    )
+
+    # CSS/JS path fix patterns
+    RE_CSS_DOUBLE_DOT = re.compile(r'href="../../assets/')
+    RE_SRC_DOUBLE_DOT = re.compile(r'src="../../assets/')
+    RE_NAV_DOUBLE_UNIT = re.compile(r'href="../(u\d+)/\1/')
+
+    def __init__(self, base_dir, output_dir, dry_run=False):
+        self.base_dir = Path(base_dir)
+        self.output_dir = Path(output_dir)
+        self.subjects = []
+        self.unit_themes = {}        # cache: "subject-unit" -> themes list
+        self.moodle_activities = {}  # cache: "subject-unit" -> activities list
+        self.moodle_urls = {}        # cache: "subject-unit" -> moodle URL
+        self.dry_run = dry_run
+
+    # ─────────────────────────────────────────────
+    #  Copy & Setup
+    # ─────────────────────────────────────────────
+    def prepare_output(self, subject_name):
+        """Copia la asignatura base al directorio de output"""
+        source = self.base_dir / subject_name
+        dest = self.output_dir / subject_name
+
+        if dest.exists():
+            print(f"  ♻  {subject_name} ya existe en output, recreando...")
+            shutil.rmtree(dest)
+
+        shutil.copytree(source, dest)
+        print(f"  📋 {subject_name} copiada a {dest}")
+        return dest
+
+    def find_subjects(self):
+        """Encuentra todas las asignaturas en el directorio base"""
+        self.subjects = [
+            d.name for d in self.base_dir.iterdir()
+            if d.is_dir() and not d.name.startswith('.')
+        ]
+        print(f"Encontradas asignaturas: {', '.join(self.subjects)}")
+        return self.subjects
+
+    def find_html_files(self, subject_path):
+        """Encuentra todos los archivos HTML en una asignatura"""
+        return list(subject_path.rglob('*.html'))
+
+    # ─────────────────────────────────────────────
+    #  JS Config parsing (with caching)
+    # ─────────────────────────────────────────────
+    def parse_js_config(self, js_content):
+        """Extrae configuración de activities_moodle.js"""
+        unit_themes = moodle_activities = moodle_url = None
+
+        m = self.RE_UNIT_THEMES.search(js_content)
+        if m:
+            try:
+                unit_themes = self._parse_unit_themes(m.group(1))
+            except Exception as e:
+                print(f"  ⚠ Error parseando unit_themes: {e}")
+
+        m = self.RE_MOODLE_ACTIVITIES.search(js_content)
+        if m:
+            try:
+                moodle_activities = self._parse_moodle_activities(m.group(1))
+            except Exception as e:
+                print(f"  ⚠ Error parseando moodleActivities: {e}")
+
+        m = self.RE_MOODLE_URL.search(js_content)
+        if m:
+            moodle_url = m.group(1)
+
+        return unit_themes, moodle_activities, moodle_url
+
+    def _parse_unit_themes(self, themes_text):
+        units = []
+        for unit_name, themes_block in self.RE_UNIT_IN_JS.findall(themes_text):
+            themes = [
+                {'themeName': tn, 'themeURL': tu, 'pages': p}
+                for tn, tu, p in self.RE_THEME_IN_JS.findall(themes_block)
+            ]
+            units.append({'unit': unit_name, 'themes': themes})
+        return units
+
+    def _parse_moodle_activities(self, activities_text):
+        return [
+            {'idHTML': ih, 'url': u, 'id': ai}
+            for ih, u, ai in self.RE_ACTIVITY_IN_JS.findall(activities_text)
+        ]
+
+    def load_activity_config(self, subject_path, unit):
+        """Carga config de activities_moodle.js con caché por unidad"""
+        key = f"{subject_path.name}-{unit}"
+
+        # Return from cache if already loaded
+        if key in self.unit_themes or key in self.moodle_activities:
+            return (
+                self.unit_themes.get(key),
+                self.moodle_activities.get(key),
+                self.moodle_urls.get(key),
+            )
+
+        config_path = subject_path / unit / 'assets' / 'scripts' / 'activities_moodle.js'
+        if not config_path.exists():
+            return None, None, None
+
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            unit_themes, moodle_activities, moodle_url = self.parse_js_config(content)
+
+            if unit_themes:
+                self.unit_themes[key] = unit_themes
+            if moodle_activities:
+                self.moodle_activities[key] = moodle_activities
+            if moodle_url:
+                self.moodle_urls[key] = moodle_url
+
+            return unit_themes, moodle_activities, moodle_url
+        except Exception as e:
+            print(f"  ⚠ Error cargando config de {config_path}: {e}")
+            return None, None, None
+
+    # ─────────────────────────────────────────────
+    #  Path helpers
+    # ─────────────────────────────────────────────
+    @staticmethod
+    def get_subject_from_path(current_path):
+        path_parts = current_path.parts
+        for i, part in enumerate(path_parts):
+            if part.startswith('u') and len(part) >= 2 and part[1:].isdigit():
+                if i > 0:
+                    return path_parts[i - 1]
+        return None
+
+    @staticmethod
+    def _extract_path_info(current_path):
+        """Extrae unit, theme, page_number desde la ruta del archivo HTML"""
+        path_parts = current_path.parts
+        file_name = path_parts[-1]
+        current_theme = path_parts[-2]
+        current_unit = path_parts[-3]
+
+        try:
+            current_page = int(file_name.replace('.html', ''))
+        except ValueError:
+            return None
+
+        return {
+            'path_parts': path_parts,
+            'file_name': file_name,
+            'current_theme': current_theme,
+            'current_unit': current_unit,
+            'current_page': current_page,
+        }
+
+    # ─────────────────────────────────────────────
+    #  Navigation calculation
+    # ─────────────────────────────────────────────
+    def calculate_next_navigation(self, current_path, unit_themes):
+        info = self._extract_path_info(current_path)
+        if not info:
+            return None
+
+        current_unit_data = None
+        current_unit_index = -1
+        for i, unit in enumerate(unit_themes):
+            if unit['unit'] == info['current_unit']:
+                current_unit_data = unit
+                current_unit_index = i
+                break
+        if not current_unit_data:
+            return None
+
+        current_theme_data = None
+        current_theme_index = -1
+        for i, theme in enumerate(current_unit_data['themes']):
+            if theme['themeURL'] == info['current_theme']:
+                current_theme_data = theme
+                current_theme_index = i
+                break
+        if not current_theme_data:
+            return None
+
+        try:
+            max_pages = int(current_theme_data['pages'])
+        except ValueError:
+            return None
+
+        # Next page within theme
+        if info['current_page'] < max_pages:
+            return f"{info['current_unit']}/{info['current_theme']}/{info['current_page'] + 1}.html"
+
+        # Next theme within unit
+        if current_theme_index < len(current_unit_data['themes']) - 1:
+            next_theme = current_unit_data['themes'][current_theme_index + 1]
+            return f"{info['current_unit']}/{next_theme['themeURL']}/1.html"
+
+        # Next unit
+        if current_unit_index < len(unit_themes) - 1:
+            next_unit = unit_themes[current_unit_index + 1]
+            return f"{next_unit['unit']}/{next_unit['themes'][0]['themeURL']}/1.html"
+
+        # Last page of last unit — no next
+        return None
+
+    def calculate_previous_navigation(self, current_path, unit_themes):
+        info = self._extract_path_info(current_path)
+        if not info:
+            return None
+
+        current_unit_data = None
+        current_unit_index = -1
+        for i, unit in enumerate(unit_themes):
+            if unit['unit'] == info['current_unit']:
+                current_unit_data = unit
+                current_unit_index = i
+                break
+        if not current_unit_data:
+            return None
+
+        current_theme_data = None
+        current_theme_index = -1
+        for i, theme in enumerate(current_unit_data['themes']):
+            if theme['themeURL'] == info['current_theme']:
+                current_theme_data = theme
+                current_theme_index = i
+                break
+        if not current_theme_data:
+            return None
+
+        # Previous page within theme
+        if info['current_page'] > 1:
+            return f"{info['current_unit']}/{info['current_theme']}/{info['current_page'] - 1}.html"
+
+        # Previous theme within unit
+        if current_theme_index > 0:
+            prev_theme = current_unit_data['themes'][current_theme_index - 1]
+            try:
+                prev_max = int(prev_theme['pages'])
+                return f"{info['current_unit']}/{prev_theme['themeURL']}/{prev_max}.html"
+            except ValueError:
+                return f"{info['current_unit']}/{prev_theme['themeURL']}/1.html"
+
+        # Previous unit
+        if current_unit_index > 0:
+            prev_unit = unit_themes[current_unit_index - 1]
+            last_theme = prev_unit['themes'][-1]
+            try:
+                last_max = int(last_theme['pages'])
+                return f"{prev_unit['unit']}/{last_theme['themeURL']}/{last_max}.html"
+            except ValueError:
+                return f"{prev_unit['unit']}/{last_theme['themeURL']}/1.html"
+
+        # First page of first unit — no previous
+        return None
+
+    # ─────────────────────────────────────────────
+    #  HTML transformations
+    # ─────────────────────────────────────────────
+    def remove_breadcrumb_links(self, html_content):
+        """Quita las ligas del breadcrumb manteniendo solo el texto"""
+        m = self.RE_BREADCRUMB.search(html_content)
+        if m:
+            opening, content, closing = m.groups()
+            content_clean = self.RE_BREADCRUMB_LINK.sub(r'\1', content)
+            html_content = html_content.replace(m.group(0), opening + content_clean + closing)
+        return html_content
+
+    def generate_units_menu(self, current_unit, unit_themes, current_path):
+        """Genera menú de navegación por unidades (botones U1, U2, etc.)"""
+        path_parts = current_path.parts
+        current_unit_index = None
+        for i, part in enumerate(path_parts):
+            if part == current_unit:
+                current_unit_index = i
+                break
+
+        items = []
+        for unit in unit_themes:
+            unit_name = unit['unit']
+            active = 'nav__menu--item--active' if unit_name == current_unit else ''
+
+            if current_unit_index is not None:
+                levels_up = len(path_parts) - current_unit_index - 1
+                rel_path = '../' * levels_up + f'{unit_name}/t1/1.html'
+            else:
+                rel_path = f'../../{unit_name}/t1/1.html'
+
+            items.append(
+                f'                <li class="nav__menu--item {active}">\n'
+                f'                    <a class="nav__menu__item--link" href="{rel_path}">\n'
+                f'                        <span>{unit_name.upper()}</span>\n'
+                f'                    </a>\n'
+                f'                </li>'
+            )
+
+        return '            <ul class="nav__menu--units">\n' + '\n'.join(items) + '\n            </ul>'
+
+    def generate_new_header_bars(self, current_unit, unit_themes, current_path, subject_name):
+        """Genera las 3 barras de navegación nuevas (Header institucional, navegación, curso)"""
+        
+        # Mapa de nombres de asignaturas
+        subject_names = {
+            'mate3': 'Matemáticas III',
+            'antropologia-1': 'Antropología I',
+            'derecho-1': 'Derecho I'
+        }
+        display_name = subject_names.get(subject_name, subject_name.replace('-', ' ').title())
+        
+        # Generar botones de unidades
+        unit_buttons = ""
+        path_parts = current_path.parts
+        current_unit_index = None
+        for i, part in enumerate(path_parts):
+            if part == current_unit:
+                current_unit_index = i
+                break
+        
+        for idx, unit_data in enumerate(unit_themes, 1):
+            unit_name = unit_data['unit']
+            active_class = "pel-header-institutional__unit-btn--active" if unit_name == current_unit else ""
+            
+            # Calcular ruta relativa
+            if current_unit_index is not None:
+                levels_up = len(path_parts) - current_unit_index - 1
+                rel_path = '../' * levels_up + f'{unit_name}/t1/1.html'
+            else:
+                rel_path = f'../../{unit_name}/t1/1.html'
+            
+            unit_buttons += f'            <a href="{rel_path}" class="pel-header-institutional__unit-btn {active_class}">Unidad {idx}</a>\n'
+        
+        # Generar las 3 barras
+        header_html = f'''
+<!-- Barra 1: Header Institucional (Negro) -->
+<header class="pel-header-institutional">
+    <div class="pel-header-institutional__inner">
+        <div class="pel-header-institutional__logo">
+            <span>Programas de Estudio en Línea</span>
+        </div>
+        <nav class="pel-header-institutional__units">
+{unit_buttons}        </nav>
+    </div>
+</header>
+
+<!-- Barra 2: Header Navegación (Naranja/Coral) -->
+<nav class="pel-header-nav">
+    <div class="pel-header-nav__inner">
+        <a href="https://pel.cch.unam.mx/?theme=moove" class="pel-header-nav__link">
+            <i class="ri-arrow-left-line"></i> Volver a mis cursos
+        </a>
+        <a href="https://pel.cch.unam.mx/login/logout.php?sesskey=acdpwASwF9&alt=logout" class="pel-header-nav__link">
+            <i class="ri-logout-box-line"></i> Cerrar sesión
+        </a>
+    </div>
+</nav>
+
+<!-- Barra 3: Header Curso (Verde/Teal) -->
+<header class="pel-header-course">
+    <div class="pel-header-course__inner">
+        <h1 class="pel-header-course__title">{display_name}</h1>
+    </div>
+</header>
+'''
+        return header_html
+
+    def replace_nav_menu(self, html_content, current_unit, unit_themes, current_path, subject_name):
+        """
+        NUEVA VERSIÓN:
+        1. Elimina completamente <nav class="nav">...</nav>
+        2. Agrega referencia a pel-navigation.css en <head>
+        3. Inserta las 3 barras nuevas después de <body>
+        """
+        if not unit_themes:
+            return html_content
+        
+        # PASO 1: Eliminar <nav class="nav">...</nav> completamente
+        nav_pattern = re.compile(r'<nav\s+class=["\']nav["\'][^>]*>.*?</nav>', re.DOTALL | re.IGNORECASE)
+        html_content = nav_pattern.sub('', html_content)
+        
+        # PASO 2: Agregar referencia a pel-navigation.css después de papiit.css
+        css_pattern = re.compile(r'(<link[^>]*href="[^"]*papiit\.css"[^>]*>)')
+        if css_pattern.search(html_content):
+            html_content = css_pattern.sub(
+                r'\1\n    <link rel="stylesheet" href="../assets/css/pel-navigation.css">',
+                html_content,
+                count=1
+            )
+        
+        # PASO 3: Insertar las 3 barras nuevas después de <body>
+        new_header = self.generate_new_header_bars(current_unit, unit_themes, current_path, subject_name)
+        body_pattern = re.compile(r'(<body[^>]*>)', re.IGNORECASE)
+        if body_pattern.search(html_content):
+            html_content = body_pattern.sub(r'\1\n' + new_header, html_content, count=1)
+        
+        return html_content
+
+    def fix_content_navigation(self, html_content, current_path, unit_themes):
+        """
+        Arregla la navegación de flechas.
+        FIX: Limpia URLs estáticas de Moodle cuando no hay siguiente/anterior.
+        """
+        if not unit_themes:
+            return html_content
+
+        next_path = self.calculate_next_navigation(current_path, unit_themes)
+        prev_path = self.calculate_previous_navigation(current_path, unit_themes)
+
+        # ── Right arrow (next) ──
+        if next_path:
+            html_content = self.RE_RIGHT_DATA_LINK.sub(
+                rf'\g<1>{next_path}\g<2>', html_content
+            )
+            html_content = self.RE_RIGHT_HREF.sub(
+                rf'\g<1>{next_path}\g<2>', html_content
+            )
+            html_content = html_content.replace(
+                'class="course__content__nav--right hidden"',
+                'class="course__content__nav--right"',
+            )
+        else:
+            # FIX: Add hidden class + clear any Moodle static URL
+            html_content = re.sub(
+                r'class="course__content__nav--right(?!\s+hidden)"',
+                'class="course__content__nav--right hidden"',
+                html_content,
+            )
+            html_content = self.RE_RIGHT_DATA_LINK.sub(r'\g<1>\g<2>', html_content)
+            html_content = self.RE_RIGHT_HREF.sub(r'\g<1>\g<2>', html_content)
+
+        # ── Left arrow (previous) ──
+        if prev_path:
+            html_content = self.RE_LEFT_DATA_LINK.sub(
+                rf'\g<1>{prev_path}\g<2>', html_content
+            )
+            html_content = self.RE_LEFT_HREF.sub(
+                rf'\g<1>{prev_path}\g<2>', html_content
+            )
+            html_content = html_content.replace(
+                'class="course__content__nav--left hidden"',
+                'class="course__content__nav--left"',
+            )
+        else:
+            # FIX: Add hidden class + clear any Moodle static URL
+            html_content = re.sub(
+                r'class="course__content__nav--left(?!\s+hidden)"',
+                'class="course__content__nav--left hidden"',
+                html_content,
+            )
+            html_content = self.RE_LEFT_DATA_LINK.sub(r'\g<1>\g<2>', html_content)
+            html_content = self.RE_LEFT_HREF.sub(r'\g<1>\g<2>', html_content)
+
+        return html_content
+
+    def convert_activities_to_iframes(self, html_content, moodle_activities, moodle_url):
+        """Convierte actividades de enlaces a iframes"""
+        if not moodle_activities or not moodle_url:
+            return html_content
+
+        for activity in moodle_activities:
+            id_html = activity['idHTML']
+            pattern = re.compile(
+                rf'<a[^>]*id="{re.escape(id_html)}"[^>]*>.*?</a>', re.DOTALL
+            )
+            match = pattern.search(html_content)
+            if match:
+                full_url = f"{moodle_url}{activity['url']}{activity['id']}&theme=photo"
+                iframe = (
+                    f'<iframe src="{full_url}" width="100%" height="600" '
+                    f'style="border: none;" title="{id_html}"></iframe>'
+                )
+                html_content = html_content.replace(match.group(0), iframe)
+
+        return html_content
+
+    def fix_css_js_paths(self, html_content):
+        """Arregla rutas CSS/JS después de reorganización de carpetas"""
+        html_content = self.RE_CSS_DOUBLE_DOT.sub('href="../assets/', html_content)
+        html_content = self.RE_SRC_DOUBLE_DOT.sub('src="../assets/', html_content)
+        html_content = self.RE_NAV_DOUBLE_UNIT.sub(r'href="../\1/', html_content)
+        return html_content
+
+    # ─────────────────────────────────────────────
+    #  File processing (single pass I/O)
+    # ─────────────────────────────────────────────
+    def process_html_file(self, file_path, subject):
+        """Procesa un archivo HTML individual — una sola pasada de lectura/escritura"""
+        action = "PROCESARÍA" if self.dry_run else "Procesando"
+        print(f"  {action}: {file_path.relative_to(self.output_dir)}")
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+
+            path_parts = file_path.parts
+            unit_indices = [
+                i for i, part in enumerate(path_parts)
+                if self.RE_UNIT_PATTERN.match(part)
+            ]
+
+            if not unit_indices:
+                return  # Not a unit HTML file
+
+            unit_index = unit_indices[0]
+            current_unit = path_parts[unit_index]
+            current_theme = path_parts[unit_index + 1] if unit_index + 1 < len(path_parts) else 't1'
+            subject_path = Path(*path_parts[:unit_index])
+            subject_name = self.get_subject_from_path(file_path)
+
+            # Load config (cached)
+            unit_themes, moodle_activities, moodle_url = self.load_activity_config(
+                subject_path, current_unit
+            )
+
+            # Apply all transformations in memory
+            html_content = self.fix_css_js_paths(html_content)
+            html_content = self.remove_breadcrumb_links(html_content)
+
+            if unit_themes:
+                html_content = self.replace_nav_menu(
+                    html_content, current_unit, unit_themes, file_path, subject_name
+                )
+                html_content = self.fix_content_navigation(
+                    html_content, file_path, unit_themes
+                )
+
+            if moodle_activities and moodle_url:
+                html_content = self.convert_activities_to_iframes(
+                    html_content, moodle_activities, moodle_url
+                )
+
+            # Write back only if not dry run
+            if not self.dry_run:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+
+        except Exception as e:
+            print(f"  ✗ Error en {file_path}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # ─────────────────────────────────────────────
+    #  Subject processing
+    # ─────────────────────────────────────────────
+    def process_subject(self, subject):
+        """Copia la asignatura a output y procesa todos los archivos"""
+        print(f"\n{'='*50}")
+        print(f"  Procesando asignatura: {subject}")
+        print(f"{'='*50}")
+
+        # Copy to output directory
+        if not self.dry_run:
+            output_path = self.prepare_output(subject)
+            
+            # Copiar pel-navigation.css a cada unidad
+            css_source = self.base_dir / "assets" / "pel-navigation.css"
+            if css_source.exists():
+                unit_folders = [f for f in output_path.iterdir() if f.is_dir() and self.RE_UNIT_PATTERN.match(f.name)]
+                for unit in unit_folders:
+                    css_dest = unit / "assets" / "css" / "pel-navigation.css"
+                    css_dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(css_source, css_dest)
+                print(f"  ✓ pel-navigation.css copiado a {len(unit_folders)} unidades")
+            else:
+                print(f"  ⚠️ No se encontró assets/pel-navigation.css")
+        else:
+            output_path = self.base_dir / subject
+            print(f"  (DRY RUN: no se copia la asignatura)")
+
+        html_files = self.find_html_files(output_path)
+
+        # Clear cache for this subject
+        self.unit_themes = {k: v for k, v in self.unit_themes.items() if not k.startswith(f"{subject}-")}
+        self.moodle_activities = {k: v for k, v in self.moodle_activities.items() if not k.startswith(f"{subject}-")}
+        self.moodle_urls = {k: v for k, v in self.moodle_urls.items() if not k.startswith(f"{subject}-")}
+
+        print(f"  Encontrados {len(html_files)} archivos HTML")
+
+        for file_path in sorted(html_files):
+            self.process_html_file(file_path, subject)
+
+        # Report cache stats
+        print(f"  📦 Configs cacheadas: {len(self.unit_themes)} unidades")
+
+        if not self.dry_run:
+            print(f"  ✅ Output en: {output_path}")
+
+    def run(self):
+        """Ejecuta el procesamiento completo"""
+        mode = "DRY RUN (sin modificar archivos)" if self.dry_run else "Procesamiento"
+        print(f"=== {mode} de HTML ===\n")
+        print(f"  Fuente: {self.base_dir}")
+        print(f"  Output: {self.output_dir}")
+
+        self.find_subjects()
+
+        for subject in self.subjects:
+            self.process_subject(subject)
+
+        if not self.dry_run:
+            print(f"\n{'='*50}")
+            print(f"  === Archivos reparados en: {self.output_dir} ===")
+            print(f"{'='*50}")
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Modifica masivamente archivos HTML de cursos. '
+                    'Las asignaturas originales NO se modifican — se copia todo al directorio de output.'
+    )
+    parser.add_argument(
+        'directory', nargs='?', default='.',
+        help='Directorio base donde están las asignaturas (default: directorio actual)'
+    )
+    parser.add_argument(
+        '--output', '-o', default='out',
+        help='Directorio de output para las asignaturas reparadas (default: out/)'
+    )
+    parser.add_argument(
+        '--subject', '-s',
+        help='Procesar solo una asignatura específica'
+    )
+    parser.add_argument(
+        '--dry-run', '-n', action='store_true',
+        help='Solo mostrar qué archivos se procesarían sin modificarlos'
+    )
+
+    args = parser.parse_args()
+
+    base_dir = Path(args.directory).resolve()
+    output_dir = Path(args.output).resolve()
+    print(f"Directorio base: {base_dir}")
+    print(f"Directorio output: {output_dir}")
+
+    if not base_dir.exists():
+        print(f"Error: El directorio base {base_dir} no existe")
+        sys.exit(1)
+
+    # Create output directory if needed
+    if not args.dry_run:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    modifier = HTMLModifier(base_dir, output_dir, dry_run=args.dry_run)
+
+    if args.subject:
+        modifier.subjects = [args.subject]
+        modifier.process_subject(args.subject)
+    else:
+        modifier.run()
+
+
+if __name__ == "__main__":
+    main()

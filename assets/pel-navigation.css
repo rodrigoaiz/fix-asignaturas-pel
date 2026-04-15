@@ -1,0 +1,196 @@
+/* ============================================
+   PEL LMS - Nueva Navegación (v2)
+   Solo agrega las 3 barras superiores
+   NO modifica estilos existentes de papiit.css
+   ============================================ */
+
+/* RESET: Asegurar que body no tenga flex/grid que rompa el layout */
+body {
+    display: block !important;
+    flex-direction: column !important;
+}
+
+:root {
+    /* Colors de la especificación */
+    --pel-color-primary: #2F8F8B;
+    --pel-color-accent: #F26C4F;
+    --pel-color-dark: #1E1E1E;
+    --pel-space-md: 24px;
+}
+
+/* ============================================
+   BARRA 1: HEADER INSTITUCIONAL (Negro)
+   ============================================ */
+
+.pel-header-institutional {
+    background: var(--pel-color-dark);
+    color: white;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    width: 100%;
+    display: block;
+    position: relative;
+    z-index: 100;
+}
+
+.pel-header-institutional__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.pel-header-institutional__logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    color: white;
+}
+
+.pel-header-institutional__units {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pel-header-institutional__unit-btn {
+    padding: 6px 16px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.pel-header-institutional__unit-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+}
+
+.pel-header-institutional__unit-btn--active {
+    background: var(--pel-color-accent);
+    border-color: var(--pel-color-accent);
+    color: white;
+}
+
+/* ============================================
+   BARRA 2: HEADER NAVEGACIÓN (Naranja/Coral)
+   ============================================ */
+
+.pel-header-nav {
+    background: var(--pel-color-accent);
+    padding: 10px 0;
+    width: 100%;
+    display: block;
+    position: relative;
+    z-index: 99;
+}
+
+.pel-header-nav__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pel-header-nav__link {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.2s;
+}
+
+.pel-header-nav__link:hover {
+    opacity: 0.9;
+    text-decoration: none;
+}
+
+.pel-header-nav__link i {
+    font-size: 16px;
+}
+
+/* ============================================
+   BARRA 3: HEADER CURSO (Verde/Teal)
+   ============================================ */
+
+.pel-header-course {
+    background: var(--pel-color-primary);
+    padding: 16px 0;
+    width: 100%;
+    display: block;
+    position: relative;
+    z-index: 98;
+}
+
+.pel-header-course__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    text-align: center;
+}
+
+.pel-header-course__title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: white;
+    line-height: 1.3;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .pel-header-institutional__inner,
+    .pel-header-nav__inner,
+    .pel-header-course__inner {
+        padding: 0 16px;
+    }
+    
+    .pel-header-institutional__inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .pel-header-institutional__logo {
+        font-size: 14px;
+    }
+    
+    .pel-header-institutional__units {
+        width: 100%;
+    }
+    
+    .pel-header-institutional__unit-btn {
+        flex: 1;
+        text-align: center;
+        font-size: 13px;
+        padding: 6px 12px;
+    }
+    
+    .pel-header-nav__inner {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .pel-header-course__title {
+        font-size: 18px;
+    }
+}
