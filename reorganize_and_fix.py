@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """
+⚠️  DEPRECADO - Este script está obsoleto ⚠️
+
+La funcionalidad de reorganización está ahora integrada en html_modifier_v2_navigation.py
+que detecta automáticamente la estructura Moodle y reorganiza antes de aplicar navegación.
+
+Usa: python3 html_modifier_v2_navigation.py
+
+---
+
 Script para reorganizar las carpetas y arreglar los HTML
 Mueve de estructura u1/u1/t1/ a u1/t1/ y ajusta todas las rutas
 

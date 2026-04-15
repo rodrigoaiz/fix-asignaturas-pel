@@ -2,14 +2,17 @@
 """
 Script para realizar cambios masivos en archivos HTML de las asignaturas
 Realiza las siguientes modificaciones:
-1. Quita las ligas del breadcrumb course__header--breadcrumb
-2. Arregla la navegación course__content__nav para continuar correctamente
-3. Reemplaza nav__menu con un menú que navegue por unidades
-4. Convierte actividades de ligas a iframes con ?theme=photo
-5. Limpia URLs estáticas de Moodle en flechas de navegación (bug fix)
+1. Detecta y reorganiza automáticamente asignaturas con estructura Moodle (u1/u1/t1/)
+2. Quita las ligas del breadcrumb course__header--breadcrumb
+3. Arregla la navegación course__content__nav para continuar correctamente
+4. Reemplaza nav__menu con un menú que navegue por unidades
+5. Convierte actividades de ligas a iframes con ?theme=photo
+6. Limpia URLs estáticas de Moodle en flechas de navegación (bug fix)
 
 Versión optimizada: regex compilados, caché de config, una sola pasada I/O
 Output independiente: los archivos originales NO se modifican, se copia todo a out/
+
+NOTA: Este script incluye la funcionalidad de reorganize_and_fix.py (ahora DEPRECADO)
 """
 
 import os
@@ -18,6 +21,181 @@ import json
 import sys
 import shutil
 from pathlib import Path
+
+
+class FolderReorganizer:
+    """Reorganiza carpetas de estructura Moodle u1/u1/t1/ a u1/t1/"""
+    # Compiled regex for path fixing
+    RE_CSS_DOUBLE_DOT = re.compile(r'href="../../assets/')
+    RE_SRC_DOUBLE_DOT = re.compile(r'src="../../assets/')
+    RE_NAV_DOUBLE_UNIT = re.compile(r'href="../(u\d+)/\1/')
+
+    def __init__(self):
+        pass
+
+    def needs_reorganization(self, subject_path):
+        """Detecta si una asignatura necesita reorganización"""
+        subject_path = Path(subject_path)
+        
+        # Buscar carpetas de unidades (u1, u2, u3, etc.)
+        unit_folders = [
+            f for f in subject_path.iterdir()
+            if f.is_dir() and f.name.startswith('u') and f.name[1:].isdigit()
+        ]
+        
+        if not unit_folders:
+            return False
+        
+        # Verificar si alguna unidad tiene estructura duplicada
+        for unit_folder in unit_folders:
+            # Caso 1: Estructura u1/u1/t1/ (mate3, derecho-1)
+            inner_unit_folder = unit_folder / unit_folder.name
+            # Caso 2: Estructura u1/build/u1/t1/ (antropologia-1)
+            build_unit_folder = unit_folder / "build" / unit_folder.name
+            
+            if inner_unit_folder.exists() and inner_unit_folder.is_dir():
+                return True
+            if build_unit_folder.exists() and build_unit_folder.is_dir():
+                return True
+        
+        return False
+
+    def reorganize_subject_folders(self, subject_path):
+        """Reorganiza las carpetas de una asignatura - maneja diferentes estructuras"""
+        subject_path = Path(subject_path)
+
+        print(f"  📁 Reorganizando {subject_path.name}...")
+
+        # Buscar todas las carpetas de unidades (u1, u2, u3, etc.)
+        unit_folders = sorted([
+            f for f in subject_path.iterdir()
+            if f.is_dir() and f.name.startswith('u') and f.name[1:].isdigit()
+        ])
+
+        if not unit_folders:
+            print(f"    ⚠ No se encontraron carpetas de unidad en {subject_path.name}")
+            return
+
+        for unit_folder in unit_folders:
+            print(f"    Procesando {unit_folder.name}...")
+
+            # Caso 1: Estructura u1/u1/t1/ (mate3, derecho-1)
+            inner_unit_folder = unit_folder / unit_folder.name
+
+            # Caso 2: Estructura u1/build/u1/t1/ (antropologia-1)
+            build_unit_folder = unit_folder / "build" / unit_folder.name
+
+            target_structure = None
+            source_path = None
+
+            if inner_unit_folder.exists() and inner_unit_folder.is_dir():
+                print(f"      → Estructura tipo 1: {inner_unit_folder}")
+                target_structure = "type1"
+                source_path = inner_unit_folder
+
+            elif build_unit_folder.exists() and build_unit_folder.is_dir():
+                print(f"      → Estructura tipo 2: {build_unit_folder}")
+                target_structure = "type2"
+                source_path = build_unit_folder
+
+            if target_structure and source_path:
+                self._move_contents(source_path, unit_folder, target_structure)
+            else:
+                print(f"      ✓ No hay estructura duplicada en {unit_folder.name}")
+
+    def _move_contents(self, source_path, unit_folder, target_structure):
+        """Mueve el contenido de la carpeta fuente a la carpeta de unidad"""
+        for item in sorted(source_path.iterdir()):
+            destination = unit_folder / item.name
+
+            if destination.exists():
+                if destination.is_dir():
+                    self.merge_directories(item, destination)
+                else:
+                    print(f"        ⚠ {destination.name} ya existe, saltando...")
+            else:
+                print(f"        → Moviendo {item.name}")
+                shutil.move(str(item), str(destination))
+
+        # Tipo 2: mover assets si existe
+        if target_structure == "type2":
+            build_folder = unit_folder / "build"
+            assets_folder = build_folder / "assets"
+
+            if assets_folder.exists():
+                destination_assets = unit_folder / "assets"
+                if destination_assets.exists():
+                    self.merge_directories(assets_folder, destination_assets)
+                else:
+                    print(f"        → Moviendo assets")
+                    shutil.move(str(assets_folder), str(destination_assets))
+
+            # Limpiar build si está vacío
+            self._safe_rmdir(build_folder)
+
+        # Limpiar carpeta fuente vacía
+        self._safe_rmdir(source_path)
+
+        # Limpiar build padre si quedó vacío (tipo 1)
+        if target_structure == "type1":
+            build_folder = unit_folder / "build"
+            self._safe_rmdir(build_folder)
+
+    @staticmethod
+    def _safe_rmdir(path):
+        """Intenta eliminar un directorio vacío de forma segura"""
+        try:
+            if path.exists() and not any(path.iterdir()):
+                path.rmdir()
+        except Exception:
+            pass  # Silenciar errores de directorio no vacío
+
+    def merge_directories(self, source, destination):
+        """Fusiona directorios recursivamente"""
+        for item in source.iterdir():
+            dest_item = destination / item.name
+
+            if item.is_dir():
+                if dest_item.exists():
+                    self.merge_directories(item, dest_item)
+                else:
+                    shutil.move(str(item), str(dest_item))
+            else:
+                if dest_item.exists():
+                    print(f"          ⚠ {dest_item.name} ya existe, saltando...")
+                else:
+                    shutil.move(str(item), str(dest_item))
+
+    def fix_html_paths_after_reorganization(self, subject_path):
+        """Arregla las rutas en los HTML después de la reorganización — una sola pasada"""
+        subject_path = Path(subject_path)
+
+        print(f"  🔧 Arreglando rutas HTML en {subject_path.name}...")
+
+        html_files = list(subject_path.rglob("*.html"))
+        updated_count = 0
+
+        for html_file in html_files:
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                original_content = content
+                
+                # Apply all path fixes in one pass
+                content = self.RE_CSS_DOUBLE_DOT.sub('href="../assets/', content)
+                content = self.RE_SRC_DOUBLE_DOT.sub('src="../assets/', content)
+                content = self.RE_NAV_DOUBLE_UNIT.sub(r'href="../\1/', content)
+
+                if content != original_content:
+                    with open(html_file, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    updated_count += 1
+
+            except Exception as e:
+                print(f"    ✗ Error en {html_file}: {e}")
+
+        print(f"    ✓ {updated_count} archivos actualizados de {len(html_files)}")
 
 
 class HTMLModifier:
@@ -79,12 +257,13 @@ class HTMLModifier:
         self.moodle_activities = {}  # cache: "subject-unit" -> activities list
         self.moodle_urls = {}        # cache: "subject-unit" -> moodle URL
         self.dry_run = dry_run
+        self.reorganizer = FolderReorganizer()  # Reorganizador integrado
 
     # ─────────────────────────────────────────────
     #  Copy & Setup
     # ─────────────────────────────────────────────
     def prepare_output(self, subject_name):
-        """Copia la asignatura base al directorio de output"""
+        """Copia la asignatura base al directorio de output y reorganiza si es necesario"""
         source = self.base_dir / subject_name
         
         # Extraer solo el nombre de la asignatura (sin la carpeta padre)
@@ -98,6 +277,15 @@ class HTMLModifier:
 
         shutil.copytree(source, dest)
         print(f"  📋 {subject_name} copiada a {dest}")
+        
+        # Detectar y reorganizar automáticamente si tiene estructura Moodle
+        if self.reorganizer.needs_reorganization(dest):
+            print(f"  🔍 Detectada estructura Moodle, reorganizando...")
+            self.reorganizer.reorganize_subject_folders(dest)
+            self.reorganizer.fix_html_paths_after_reorganization(dest)
+        else:
+            print(f"  ✓ Estructura correcta, no necesita reorganización")
+        
         return dest
 
     def find_subjects(self):
