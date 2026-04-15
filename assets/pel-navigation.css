@@ -154,6 +154,128 @@ body {
 }
 
 /* ============================================
+   NAVEGACIÓN DE TEMAS (dentro del contenedor .course)
+   ============================================ */
+
+.pel-theme-nav {
+    background: var(--pel-color-light, #F5F5F5);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 32px;
+}
+
+.pel-theme-nav__title {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--pel-color-dark);
+}
+
+.pel-theme-nav__list {
+    margin: 0;
+    padding-left: 24px;
+    list-style: decimal;
+}
+
+.pel-theme-nav__item {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.pel-theme-nav__item--active .pel-theme-nav__link {
+    color: var(--pel-color-primary);
+    font-weight: 600;
+}
+
+.pel-theme-nav__link {
+    color: var(--pel-color-text, #2B2B2B);
+    text-decoration: none;
+    font-size: 16px;
+    transition: color 0.2s;
+}
+
+.pel-theme-nav__link:hover {
+    color: var(--pel-color-primary);
+    text-decoration: underline;
+}
+
+/* ============================================
+   NAVEGACIÓN DE PÁGINAS (números dentro del tema)
+   ============================================ */
+
+.pel-page-nav {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.pel-page-nav__inner {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.pel-page-nav__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    background: white;
+    border: 1px solid #D0D0D0;
+    border-radius: 4px;
+    color: var(--pel-color-text, #2B2B2B);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.pel-page-nav__btn:hover {
+    background: var(--pel-color-light, #F5F5F5);
+    border-color: var(--pel-color-primary);
+    text-decoration: none;
+}
+
+.pel-page-nav__btn--active {
+    background: var(--pel-color-primary);
+    border-color: var(--pel-color-primary);
+    color: white;
+}
+
+.pel-page-nav__btn--active:hover {
+    background: var(--pel-color-primary);
+    opacity: 0.9;
+}
+
+/* ============================================
+   FOOTER (ancho completo)
+   ============================================ */
+
+.course__footer {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 48px 0 0 0 !important;
+    padding: 32px 24px !important;
+    background: var(--pel-color-dark) !important;
+    border: none !important;
+}
+
+.course__footer--logo,
+.course__footer--disclaimer {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.course__footer--text {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ============================================
    RESPONSIVE
    ============================================ */
 

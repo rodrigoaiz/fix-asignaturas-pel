@@ -429,19 +429,118 @@ class HTMLModifier:
 '''
         return header_html
 
-    def replace_nav_menu(self, html_content, current_unit, unit_themes, current_path, subject_name):
+    def generate_theme_navigation(self, current_unit, current_theme, unit_themes, current_path):
+        """Genera navegación de temas dentro del contenedor .course"""
+        
+        # Encontrar los temas de la unidad actual
+        current_unit_themes = None
+        for unit_data in unit_themes:
+            if unit_data['unit'] == current_unit:
+                current_unit_themes = unit_data.get('themes', [])
+                break
+        
+        if not current_unit_themes:
+            return ""
+        
+        # Calcular rutas relativas
+        path_parts = current_path.parts
+        current_unit_index = None
+        for i, part in enumerate(path_parts):
+            if part == current_unit:
+                current_unit_index = i
+                break
+        
+        # Generar lista de temas
+        theme_items = ""
+        for idx, theme_data in enumerate(current_unit_themes, 1):
+            theme_url = theme_data['themeURL']
+            theme_name = theme_data['themeName']
+            active_class = "pel-theme-nav__item--active" if theme_url == current_theme else ""
+            
+            # Calcular ruta relativa al tema
+            if current_unit_index is not None:
+                levels_up = len(path_parts) - current_unit_index - 1
+                theme_link = '../' * (levels_up - 1) + f'{theme_url}/1.html'
+            else:
+                theme_link = f'../{theme_url}/1.html'
+            
+            theme_items += f'            <li class="pel-theme-nav__item {active_class}">\n'
+            theme_items += f'                <a href="{theme_link}" class="pel-theme-nav__link">{theme_name}</a>\n'
+            theme_items += f'            </li>\n'
+        
+        nav_html = f'''    <!-- Navegación de Temas -->
+    <nav class="pel-theme-nav">
+        <h3 class="pel-theme-nav__title">Temas de esta unidad</h3>
+        <ol class="pel-theme-nav__list">
+{theme_items}        </ol>
+    </nav>
+'''
+        return nav_html
+
+    def generate_page_navigation(self, current_unit, current_theme, current_page_num, unit_themes, current_path):
+        """Genera navegación de números de página dentro del tema actual"""
+        
+        # Encontrar el tema actual y su número de páginas
+        current_theme_data = None
+        for unit_data in unit_themes:
+            if unit_data['unit'] == current_unit:
+                for theme_data in unit_data.get('themes', []):
+                    if theme_data['themeURL'] == current_theme:
+                        current_theme_data = theme_data
+                        break
+                break
+        
+        if not current_theme_data:
+            return ""
+        
+        total_pages = int(current_theme_data.get('pages', 1))
+        
+        if total_pages <= 1:
+            return ""  # No mostrar navegación si solo hay 1 página
+        
+        # Generar botones de página
+        page_buttons = ""
+        for page_num in range(1, total_pages + 1):
+            active_class = "pel-page-nav__btn--active" if page_num == current_page_num else ""
+            page_link = f"{page_num}.html"
+            page_buttons += f'            <a href="{page_link}" class="pel-page-nav__btn {active_class}">{page_num}</a>\n'
+        
+        nav_html = f'''    <!-- Navegación de Páginas -->
+    <nav class="pel-page-nav">
+        <div class="pel-page-nav__inner">
+{page_buttons}        </div>
+    </nav>
+'''
+        return nav_html
+
+    def replace_nav_menu(self, html_content, current_unit, unit_themes, current_path, subject_name, current_theme):
         """
         NUEVA VERSIÓN:
-        1. Elimina completamente <nav class="nav">...</nav>
+        1. Elimina completamente <nav class="nav">...</nav> y <aside class="summary">
         2. Agrega referencia a pel-navigation.css en <head>
         3. Inserta las 3 barras nuevas después de <body>
+        4. Inserta navegación de temas dentro de <div class="course">
+        5. Inserta navegación de páginas después de navegación de temas
         """
         if not unit_themes:
             return html_content
         
+        # Extraer número de página actual del path
+        current_page_num = 1
+        page_file = current_path.name  # ej: "1.html", "2.html"
+        if page_file.endswith('.html'):
+            try:
+                current_page_num = int(page_file.replace('.html', ''))
+            except:
+                current_page_num = 1
+        
         # PASO 1: Eliminar <nav class="nav">...</nav> completamente
         nav_pattern = re.compile(r'<nav\s+class=["\']nav["\'][^>]*>.*?</nav>', re.DOTALL | re.IGNORECASE)
         html_content = nav_pattern.sub('', html_content)
+        
+        # PASO 1b: Eliminar <aside class="summary">...</aside> completamente
+        aside_pattern = re.compile(r'<aside\s+class=["\']summary["\'][^>]*>.*?</aside>', re.DOTALL | re.IGNORECASE)
+        html_content = aside_pattern.sub('', html_content)
         
         # PASO 2: Agregar referencia a pel-navigation.css después de papiit.css
         css_pattern = re.compile(r'(<link[^>]*href="[^"]*papiit\.css"[^>]*>)')
@@ -457,6 +556,25 @@ class HTMLModifier:
         body_pattern = re.compile(r'(<body[^>]*>)', re.IGNORECASE)
         if body_pattern.search(html_content):
             html_content = body_pattern.sub(r'\1\n' + new_header, html_content, count=1)
+        
+        # PASO 4: Insertar navegación de temas dentro de <div class="course">
+        theme_nav = self.generate_theme_navigation(current_unit, current_theme, unit_themes, current_path)
+        page_nav = self.generate_page_navigation(current_unit, current_theme, current_page_num, unit_themes, current_path)
+        combined_nav = theme_nav + page_nav
+        
+        course_pattern = re.compile(r'(<div\s+class=["\']course["\'][^>]*>)', re.IGNORECASE)
+        if course_pattern.search(html_content):
+            html_content = course_pattern.sub(r'\1\n' + combined_nav, html_content, count=1)
+        
+        # PASO 5: Extraer footer fuera del contenedor .course y ponerlo antes de </body>
+        footer_pattern = re.compile(r'(<footer\s+class=["\']course__footer["\'][^>]*>.*?</footer>)', re.DOTALL | re.IGNORECASE)
+        footer_match = footer_pattern.search(html_content)
+        if footer_match:
+            footer_html = footer_match.group(1)
+            # Eliminar el footer de donde está
+            html_content = footer_pattern.sub('', html_content)
+            # Insertarlo antes de </body>
+            html_content = re.sub(r'(</body>)', footer_html + r'\n\1', html_content, flags=re.IGNORECASE)
         
         return html_content
 
@@ -583,7 +701,7 @@ class HTMLModifier:
 
             if unit_themes:
                 html_content = self.replace_nav_menu(
-                    html_content, current_unit, unit_themes, file_path, subject_name
+                    html_content, current_unit, unit_themes, file_path, subject_name, current_theme
                 )
                 html_content = self.fix_content_navigation(
                     html_content, file_path, unit_themes
