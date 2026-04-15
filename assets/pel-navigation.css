@@ -3,11 +3,14 @@
    Diseño según ui-ux-spec-lms-v2.md
    ============================================ */
 
+/* Importar fuentes de Google Fonts - Variable fonts para mejor rendimiento */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Roboto+Condensed:wght@400;700&display=swap');
+
 /* RESET: Asegurar que body no tenga flex/grid que rompa el layout */
 body {
     display: block !important;
     background: #fafafa !important;
-    font-family: 'Inter', 'Roboto', 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: var(--font-texto) !important;
     color: #2B2B2B !important;
 }
 
@@ -33,6 +36,10 @@ body {
     --pel-text-md: 18px;
     --pel-text-lg: 22px;
     --pel-text-xl: 26px;
+    
+    /* Fuentes */
+    --font-titulos: 'Roboto Condensed', sans-serif;
+    --font-texto: 'Open Sans', sans-serif;
 }
 
 /* ============================================
@@ -59,6 +66,72 @@ body {
     .course {
         padding: var(--pel-space-lg) !important;
     }
+}
+
+/* ============================================
+   TIPOGRAFÍA Y CONTENIDO
+   ============================================ */
+
+/* Títulos con Roboto Condensed */
+h1, h2, h3, h4, h5, h6,
+.course__header--breadcrumb,
+.course__content__header--head,
+.pel-header-course__title,
+.pel-theme-nav__title {
+    font-family: var(--font-titulos) !important;
+    font-weight: 700 !important;
+}
+
+/* Párrafos del contenido con mejor legibilidad */
+.course__content p {
+    font-family: var(--font-texto) !important;
+    max-width: 70ch !important;
+    line-height: 1.7 !important;
+    margin-bottom: var(--pel-space-md) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Listas del contenido */
+.course__content ul,
+.course__content ol {
+    font-family: var(--font-texto) !important;
+    max-width: 70ch !important;
+    line-height: 1.7 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: var(--pel-space-md) !important;
+}
+
+/* Títulos del contenido centrados */
+.course__content h1,
+.course__content h2,
+.course__content h3,
+.course__content h4,
+.course__content h5,
+.course__content h6 {
+    max-width: 70ch !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: var(--pel-space-sm) !important;
+}
+
+/* Contenedores de imágenes y videos centrados */
+.course__content .image_container,
+.course__content .video_embebed,
+.course__content .video_container {
+    max-width: 70ch !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: var(--pel-space-md) !important;
+}
+
+/* Tablas centradas */
+.course__content table {
+    max-width: 70ch !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: var(--pel-space-md) !important;
 }
 
 /* ============================================
@@ -492,6 +565,68 @@ body {
 /* Ocultar footer viejo si queda */
 .course__footer {
     display: none !important;
+}
+
+/* ============================================
+   ACTIVITY (Sobrescribir estilos de Moodle)
+   ============================================ */
+
+/* Contenedor con fondo oscuro que se extiende full-width */
+.activity {
+    width: auto !important;
+    max-width: none !important;
+    position: relative !important;
+    padding: var(--pel-space-xl) var(--pel-space-md) !important;
+    margin-top: var(--pel-space-lg) !important;
+    margin-bottom: var(--pel-space-lg) !important;
+    
+    /* Fondo oscuro que se extiende hasta los bordes */
+    background: var(--pel-color-dark) !important;
+    box-shadow: 
+        0 0 0 100vw var(--pel-color-dark),
+        0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    clip-path: inset(0 -100vw);
+}
+
+/* Estilos para el contenido */
+.activity h3 {
+    color: white !important;
+    font-size: var(--pel-text-lg) !important;
+    font-weight: 700 !important;
+    margin-bottom: var(--pel-space-sm) !important;
+}
+
+.activity p {
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-size: var(--pel-text-base) !important;
+    line-height: 1.6 !important;
+    margin-bottom: var(--pel-space-md) !important;
+}
+
+/* Logo/icono del activity - sin filtro para que se vea bien */
+.activity > span {
+    display: inline-block;
+    margin-bottom: var(--pel-space-sm);
+}
+
+.activity > span img {
+    /* Sin filtro para que los iconos se vean correctamente */
+    filter: none !important;
+    opacity: 1 !important;
+}
+
+/* iframe al 100% dentro del contenedor normal */
+.activity .button_activity,
+.activity iframe {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.activity .button_activity {
+    background: white !important;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: var(--pel-space-md) !important;
 }
 
 /* ============================================
