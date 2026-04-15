@@ -319,14 +319,16 @@ body {
 
 /* Footer principal */
 .pel-footer {
+    padding-top: var(--pel-space-md);
     width: 100%;
     margin-top: var(--pel-space-xl);
+    background: var(--pel-color-dark);
 }
 
 /* Franja PAPIIT (Naranja) */
 .pel-footer__papiit {
     background: var(--pel-color-accent);
-    padding: var(--pel-space-md);
+    padding: var(--pel-space-sm) 0;
     width: 100%;
 }
 
@@ -346,7 +348,6 @@ body {
 
 /* Sección principal oscura */
 .pel-footer__main {
-    background: var(--pel-color-dark);
     padding: var(--pel-space-xl) var(--pel-space-md);
     width: 100%;
 }
