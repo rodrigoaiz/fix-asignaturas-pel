@@ -401,6 +401,7 @@ class HTMLModifier:
 <header class="pel-header-institutional">
     <div class="pel-header-institutional__inner">
         <div class="pel-header-institutional__logo">
+            <img src="../assets/logo-pel.svg" alt="PEL" class="pel-header-institutional__logo-img">
             <span>Programas de Estudio en Línea</span>
         </div>
         <nav class="pel-header-institutional__units">
@@ -542,11 +543,11 @@ class HTMLModifier:
         aside_pattern = re.compile(r'<aside\s+class=["\']summary["\'][^>]*>.*?</aside>', re.DOTALL | re.IGNORECASE)
         html_content = aside_pattern.sub('', html_content)
         
-        # PASO 2: Agregar referencia a pel-navigation.css después de papiit.css
+        # PASO 2: Agregar referencia a pel-navigation.css y pel-navigation.js después de papiit.css
         css_pattern = re.compile(r'(<link[^>]*href="[^"]*papiit\.css"[^>]*>)')
         if css_pattern.search(html_content):
             html_content = css_pattern.sub(
-                r'\1\n    <link rel="stylesheet" href="../assets/css/pel-navigation.css">',
+                r'\1\n    <link rel="stylesheet" href="../assets/css/pel-navigation.css">\n    <script src="../assets/scripts/pel-navigation.js"></script>',
                 html_content,
                 count=1
             )
@@ -557,20 +558,32 @@ class HTMLModifier:
         if body_pattern.search(html_content):
             html_content = body_pattern.sub(r'\1\n' + new_header, html_content, count=1)
         
-        # PASO 4: Insertar navegación de temas dentro de <div class="course">
+        # PASO 4: Insertar navegación de temas ANTES de <div class="course"> (full-width)
         theme_nav = self.generate_theme_navigation(current_unit, current_theme, unit_themes, current_path)
-        page_nav = self.generate_page_navigation(current_unit, current_theme, current_page_num, unit_themes, current_path)
-        combined_nav = theme_nav + page_nav
         
         course_pattern = re.compile(r'(<div\s+class=["\']course["\'][^>]*>)', re.IGNORECASE)
         if course_pattern.search(html_content):
-            html_content = course_pattern.sub(r'\1\n' + combined_nav, html_content, count=1)
+            # Navegación de temas va ANTES del contenedor .course
+            html_content = course_pattern.sub(theme_nav + r'\1', html_content, count=1)
+        
+        # PASO 4b: Insertar navegación de páginas DENTRO de <div class="course">
+        page_nav = self.generate_page_navigation(current_unit, current_theme, current_page_num, unit_themes, current_path)
+        
+        course_pattern2 = re.compile(r'(<div\s+class=["\']course["\'][^>]*>)', re.IGNORECASE)
+        if course_pattern2.search(html_content):
+            html_content = course_pattern2.sub(r'\1\n' + page_nav, html_content, count=1)
         
         # PASO 5: Extraer footer fuera del contenedor .course y ponerlo antes de </body>
         footer_pattern = re.compile(r'(<footer\s+class=["\']course__footer["\'][^>]*>.*?</footer>)', re.DOTALL | re.IGNORECASE)
         footer_match = footer_pattern.search(html_content)
         if footer_match:
             footer_html = footer_match.group(1)
+            # Reemplazar el logo de PAPIIT con el logo de PEL
+            footer_html = re.sub(
+                r'<img[^>]*src="[^"]*papiit\.svg"[^>]*>',
+                '<img class="course__footer__logo" src="../assets/logo-pel.svg" height="80" alt="Programas de Estudio en Línea">',
+                footer_html
+            )
             # Eliminar el footer de donde está
             html_content = footer_pattern.sub('', html_content)
             # Insertarlo antes de </body>
@@ -735,17 +748,39 @@ class HTMLModifier:
         if not self.dry_run:
             output_path = self.prepare_output(subject)
             
-            # Copiar pel-navigation.css a cada unidad
+            # Copiar pel-navigation.css, pel-navigation.js y logo-pel.svg a cada unidad
             css_source = self.base_dir / "assets" / "pel-navigation.css"
-            if css_source.exists():
+            js_source = self.base_dir / "assets" / "pel-navigation.js"
+            logo_source = self.base_dir / "assets" / "logo-pel.svg"
+            
+            if css_source.exists() and js_source.exists() and logo_source.exists():
                 unit_folders = [f for f in output_path.iterdir() if f.is_dir() and self.RE_UNIT_PATTERN.match(f.name)]
                 for unit in unit_folders:
+                    # Copiar CSS
                     css_dest = unit / "assets" / "css" / "pel-navigation.css"
                     css_dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(css_source, css_dest)
+                    
+                    # Copiar JS
+                    js_dest = unit / "assets" / "scripts" / "pel-navigation.js"
+                    js_dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(js_source, js_dest)
+                    
+                    # Copiar Logo
+                    logo_dest = unit / "assets" / "logo-pel.svg"
+                    logo_dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(logo_source, logo_dest)
+                    
                 print(f"  ✓ pel-navigation.css copiado a {len(unit_folders)} unidades")
+                print(f"  ✓ pel-navigation.js copiado a {len(unit_folders)} unidades")
+                print(f"  ✓ logo-pel.svg copiado a {len(unit_folders)} unidades")
             else:
-                print(f"  ⚠️ No se encontró assets/pel-navigation.css")
+                if not css_source.exists():
+                    print(f"  ⚠️ No se encontró assets/pel-navigation.css")
+                if not js_source.exists():
+                    print(f"  ⚠️ No se encontró assets/pel-navigation.js")
+                if not logo_source.exists():
+                    print(f"  ⚠️ No se encontró assets/logo-pel.svg")
         else:
             output_path = self.base_dir / subject
             print(f"  (DRY RUN: no se copia la asignatura)")

@@ -1,13 +1,14 @@
 /* ============================================
    PEL LMS - Nueva Navegación (v2)
-   Solo agrega las 3 barras superiores
-   NO modifica estilos existentes de papiit.css
+   Diseño según ui-ux-spec-lms-v2.md
    ============================================ */
 
 /* RESET: Asegurar que body no tenga flex/grid que rompa el layout */
 body {
     display: block !important;
-    flex-direction: column !important;
+    background: #fafafa !important;
+    font-family: 'Inter', 'Roboto', 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    color: #2B2B2B !important;
 }
 
 :root {
@@ -15,7 +16,23 @@ body {
     --pel-color-primary: #2F8F8B;
     --pel-color-accent: #F26C4F;
     --pel-color-dark: #1E1E1E;
+    --pel-color-light: #F5F5F5;
+    --pel-color-text: #2B2B2B;
+    --pel-color-muted: #6B7280;
+    
+    /* Spacing (ritmo vertical) */
+    --pel-space-xs: 8px;
+    --pel-space-sm: 16px;
     --pel-space-md: 24px;
+    --pel-space-lg: 32px;
+    --pel-space-xl: 48px;
+    
+    /* Typography */
+    --pel-text-sm: 14px;
+    --pel-text-base: 16px;
+    --pel-text-md: 18px;
+    --pel-text-lg: 22px;
+    --pel-text-xl: 26px;
 }
 
 /* ============================================
@@ -26,7 +43,6 @@ body {
     background: var(--pel-color-dark);
     color: white;
     padding: 12px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
     display: block;
     position: relative;
@@ -36,11 +52,11 @@ body {
 .pel-header-institutional__inner {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 var(--pel-space-md);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
+    gap: var(--pel-space-md);
 }
 
 .pel-header-institutional__logo {
@@ -48,8 +64,15 @@ body {
     align-items: center;
     gap: 12px;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 400;
     color: white;
+    white-space: nowrap;
+}
+
+.pel-header-institutional__logo-img {
+    height: 32px;
+    width: auto;
+    display: block;
 }
 
 .pel-header-institutional__units {
@@ -59,15 +82,15 @@ body {
 }
 
 .pel-header-institutional__unit-btn {
-    padding: 6px 16px;
+    padding: 6px 14px;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 4px;
     color: white;
     text-decoration: none;
     font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
+    font-weight: 400;
+    transition: all 0.15s;
     cursor: pointer;
 }
 
@@ -99,7 +122,7 @@ body {
 .pel-header-nav__inner {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 var(--pel-space-md);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -109,15 +132,15 @@ body {
     color: white;
     text-decoration: none;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 400;
     display: flex;
     align-items: center;
     gap: 6px;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s;
 }
 
 .pel-header-nav__link:hover {
-    opacity: 0.9;
+    opacity: 0.85;
     text-decoration: none;
 }
 
@@ -130,8 +153,8 @@ body {
    ============================================ */
 
 .pel-header-course {
-    background: var(--pel-color-primary);
-    padding: 16px 0;
+    background: linear-gradient(135deg, var(--pel-color-primary) 0%, #258A86 100%);
+    padding: 18px 0;
     width: 100%;
     display: block;
     position: relative;
@@ -141,45 +164,53 @@ body {
 .pel-header-course__inner {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 var(--pel-space-md);
     text-align: center;
 }
 
 .pel-header-course__title {
     margin: 0;
-    font-size: 22px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 700;
     color: white;
     line-height: 1.3;
 }
 
 /* ============================================
-   NAVEGACIÓN DE TEMAS (dentro del contenedor .course)
+   NAVEGACIÓN DE TEMAS (full width con fondo gris)
    ============================================ */
 
 .pel-theme-nav {
-    background: var(--pel-color-light, #F5F5F5);
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 32px;
+    background: #fafafa;
+    width: 100%;
+    padding: var(--pel-space-md) 0;
+    margin-bottom: var(--pel-space-lg);
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .pel-theme-nav__title {
-    margin: 0 0 16px 0;
+    max-width: 760px;
+    margin: 0 auto var(--pel-space-sm) auto;
+    padding: 0 var(--pel-space-md);
     font-size: 18px;
     font-weight: 600;
     color: var(--pel-color-dark);
 }
 
 .pel-theme-nav__list {
-    margin: 0;
-    padding-left: 24px;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 var(--pel-space-md) 0 calc(var(--pel-space-md) + 24px);
     list-style: decimal;
 }
 
 .pel-theme-nav__item {
     margin-bottom: 8px;
-    line-height: 1.5;
+    line-height: 1.6;
+}
+
+.pel-theme-nav__item:last-child {
+    margin-bottom: 0;
 }
 
 .pel-theme-nav__item--active .pel-theme-nav__link {
@@ -188,15 +219,15 @@ body {
 }
 
 .pel-theme-nav__link {
-    color: var(--pel-color-text, #2B2B2B);
+    color: var(--pel-color-text);
     text-decoration: none;
     font-size: 16px;
-    transition: color 0.2s;
+    transition: color 0.15s;
 }
 
 .pel-theme-nav__link:hover {
     color: var(--pel-color-primary);
-    text-decoration: underline;
+    text-decoration: none;
 }
 
 /* ============================================
@@ -204,14 +235,14 @@ body {
    ============================================ */
 
 .pel-page-nav {
-    margin-bottom: 32px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid #E0E0E0;
+    margin-bottom: var(--pel-space-md);
+    padding-bottom: var(--pel-space-sm);
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .pel-page-nav__inner {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
     align-items: center;
 }
@@ -220,21 +251,21 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 12px;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
     background: white;
-    border: 1px solid #D0D0D0;
+    border: 1px solid #d1d5db;
     border-radius: 4px;
-    color: var(--pel-color-text, #2B2B2B);
+    color: var(--pel-color-text);
     text-decoration: none;
     font-size: 14px;
     font-weight: 500;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 
 .pel-page-nav__btn:hover {
-    background: var(--pel-color-light, #F5F5F5);
+    background: #f9fafb;
     border-color: var(--pel-color-primary);
     text-decoration: none;
 }
@@ -246,8 +277,8 @@ body {
 }
 
 .pel-page-nav__btn--active:hover {
-    background: var(--pel-color-primary);
-    opacity: 0.9;
+    background: #278481;
+    border-color: #278481;
 }
 
 /* ============================================
@@ -257,10 +288,11 @@ body {
 .course__footer {
     width: 100% !important;
     max-width: 100% !important;
-    margin: 48px 0 0 0 !important;
-    padding: 32px 24px !important;
+    margin: var(--pel-space-xl) 0 0 0 !important;
+    padding: var(--pel-space-xl) var(--pel-space-md) !important;
     background: var(--pel-color-dark) !important;
     border: none !important;
+    border-top: 3px solid var(--pel-color-primary);
 }
 
 .course__footer--logo,
@@ -269,10 +301,24 @@ body {
     margin: 0 auto;
 }
 
+.course__footer--logo {
+    margin-bottom: var(--pel-space-md);
+    text-align: center;
+}
+
+.course__footer--disclaimer {
+    padding-top: var(--pel-space-md);
+}
+
 .course__footer--text {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: rgba(255, 255, 255, 0.75) !important;
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.7;
+    margin-bottom: var(--pel-space-sm);
+}
+
+.course__footer--text:last-child {
+    margin-bottom: 0;
 }
 
 /* ============================================
@@ -283,7 +329,11 @@ body {
     .pel-header-institutional__inner,
     .pel-header-nav__inner,
     .pel-header-course__inner {
-        padding: 0 16px;
+        padding: 0 var(--pel-space-sm);
+    }
+    
+    .pel-header-institutional {
+        padding: 10px 0;
     }
     
     .pel-header-institutional__inner {
@@ -298,21 +348,63 @@ body {
     
     .pel-header-institutional__units {
         width: 100%;
+        gap: 6px;
     }
     
     .pel-header-institutional__unit-btn {
         flex: 1;
         text-align: center;
         font-size: 13px;
-        padding: 6px 12px;
+        padding: 6px 10px;
+    }
+    
+    .pel-header-nav {
+        padding: 8px 0;
     }
     
     .pel-header-nav__inner {
         flex-direction: column;
         gap: 8px;
+        align-items: stretch;
+    }
+    
+    .pel-header-nav__link {
+        justify-content: center;
+        padding: 6px 0;
+    }
+    
+    .pel-header-course {
+        padding: 14px 0;
     }
     
     .pel-header-course__title {
-        font-size: 18px;
+        font-size: 20px;
+    }
+    
+    .pel-theme-nav {
+        padding: var(--pel-space-sm) 0;
+    }
+    
+    .pel-theme-nav__title {
+        padding: 0 var(--pel-space-sm);
+        font-size: 16px;
+    }
+    
+    .pel-theme-nav__list {
+        padding: 0 var(--pel-space-sm) 0 calc(var(--pel-space-sm) + 20px);
+    }
+    
+    .pel-theme-nav__link {
+        font-size: 15px;
+    }
+    
+    .pel-page-nav__btn {
+        min-width: 28px;
+        height: 28px;
+        font-size: 13px;
+    }
+    
+    .course__footer {
+        padding: var(--pel-space-lg) var(--pel-space-sm) !important;
     }
 }
