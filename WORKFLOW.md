@@ -5,7 +5,8 @@ Documentación del flujo de trabajo para el sistema de navegación de asignatura
 ## 🚀 Comando principal (hace TODO)
 
 ```bash
-cd /home/rodrigo-aizpuru/Documentos/Dev/fix-asignaturas-pel
+# Desde el directorio del proyecto
+cd /ruta/a/tu/proyecto
 rm -rf out && python3 html_modifier_v2_navigation.py
 ```
 
@@ -105,7 +106,7 @@ rm -rf out && python3 html_modifier_v2_navigation.py
 ## 📂 Estructura del proyecto
 
 ```
-/home/rodrigo-aizpuru/Documentos/Dev/fix-asignaturas-pel/
+fix-asignaturas-pel/              ← Tu directorio del proyecto
 │
 ├── 📁 antropologia-1/          ← Fuente (NO TOCAR)
 ├── 📁 mate3/                   ← Fuente (NO TOCAR)  
