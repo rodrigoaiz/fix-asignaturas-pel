@@ -98,10 +98,23 @@ class HTMLModifier:
 
     def find_subjects(self):
         """Encuentra todas las asignaturas en el directorio base"""
-        self.subjects = [
-            d.name for d in self.base_dir.iterdir()
-            if d.is_dir() and not d.name.startswith('.')
-        ]
+        # Filtrar solo carpetas que contengan subcarpetas de unidades (u1, u2, etc.)
+        excluded = {'out', 'assets', 'docs', 'logo', '.git', '__pycache__'}
+        
+        self.subjects = []
+        for d in self.base_dir.iterdir():
+            if not d.is_dir() or d.name.startswith('.') or d.name in excluded:
+                continue
+            
+            # Verificar si tiene al menos una carpeta de unidad (u1, u2, etc.)
+            has_units = any(
+                sub.is_dir() and self.RE_UNIT_PATTERN.match(sub.name)
+                for sub in d.iterdir()
+            )
+            
+            if has_units:
+                self.subjects.append(d.name)
+        
         print(f"Encontradas asignaturas: {', '.join(self.subjects)}")
         return self.subjects
 
