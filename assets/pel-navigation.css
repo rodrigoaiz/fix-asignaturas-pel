@@ -75,6 +75,12 @@ body {
     display: block;
 }
 
+.pel-header-institutional__logo span { 
+    text-transform: uppercase;
+    font-weight: bold;
+    color: var(--pel-color-light);
+}
+
 .pel-header-institutional__units {
     display: flex;
     gap: 8px;
@@ -92,6 +98,7 @@ body {
     font-weight: 400;
     transition: all 0.15s;
     cursor: pointer;
+    text-transform: uppercase;
 }
 
 .pel-header-institutional__unit-btn:hover {
@@ -112,7 +119,7 @@ body {
 
 .pel-header-nav {
     background: var(--pel-color-accent);
-    padding: 10px 0;
+    padding: 3px 0;
     width: 100%;
     display: block;
     position: relative;
@@ -154,7 +161,7 @@ body {
 
 .pel-header-course {
     background: linear-gradient(135deg, var(--pel-color-primary) 0%, #258A86 100%);
-    padding: 18px 0;
+    padding: 3px 0;
     width: 100%;
     display: block;
     position: relative;
@@ -184,12 +191,11 @@ body {
     background: #fafafa;
     width: 100%;
     padding: var(--pel-space-md) 0;
-    margin-bottom: var(--pel-space-lg);
     border-bottom: 1px solid #e5e7eb;
 }
 
 .pel-theme-nav__title {
-    max-width: 760px;
+    max-width: 1200px;
     margin: 0 auto var(--pel-space-sm) auto;
     padding: 0 var(--pel-space-md);
     font-size: 18px;
@@ -198,7 +204,7 @@ body {
 }
 
 .pel-theme-nav__list {
-    max-width: 760px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 0 var(--pel-space-md) 0 calc(var(--pel-space-md) + 24px);
     list-style: decimal;
