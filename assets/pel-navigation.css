@@ -36,6 +36,32 @@ body {
 }
 
 /* ============================================
+   CONTENEDOR PRINCIPAL (.course)
+   ============================================ */
+
+/* Sobrescribir estilos de papiit.css para layout moderno */
+.course {
+    width: 100% !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: var(--pel-space-md) !important;
+    border: none !important;
+    border-top: none !important;
+}
+
+@media (min-width: 768px) {
+    .course {
+        padding: var(--pel-space-lg) var(--pel-space-md) !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .course {
+        padding: var(--pel-space-lg) !important;
+    }
+}
+
+/* ============================================
    BARRA 1: HEADER INSTITUCIONAL (Negro)
    ============================================ */
 
