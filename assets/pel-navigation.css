@@ -51,20 +51,20 @@ body {
     width: 100% !important;
     max-width: 1200px !important;
     margin: 0 auto !important;
-    padding: var(--pel-space-md) !important;
+    padding:0 var(--pel-space-md) !important;
     border: none !important;
     border-top: none !important;
 }
 
 @media (min-width: 768px) {
     .course {
-        padding: var(--pel-space-lg) var(--pel-space-md) !important;
+        padding: 0 var(--pel-space-md) !important;
     }
 }
 
 @media (min-width: 1024px) {
     .course {
-        padding: var(--pel-space-lg) !important;
+        padding: 0 !important;
     }
 }
 
@@ -80,6 +80,22 @@ h1, h2, h3, h4, h5, h6,
 .pel-theme-nav__title {
     font-family: var(--font-titulos) !important;
     font-weight: 700 !important;
+    color: var(--pel-color-dark) !important;
+}
+.pel-header-course__title{
+    color: white !important;
+}
+
+.course__header__breadcrumb--theme {
+    font-weight: 600 !important;
+    color: var(--pel-color-muted) !important;
+}
+
+/* Header del contenido - NO fixed */
+.course__content__header {
+    position: relative !important;
+    top: auto !important;
+    z-index: auto !important;
 }
 
 .course__content__header {
@@ -143,6 +159,17 @@ h1, h2, h3, h4, h5, h6,
     margin-left: auto !important;
     margin-right: auto !important;
     margin-bottom: var(--pel-space-md) !important;
+}
+
+
+.course__content__nav--left, .course__content__nav--right{
+    border-color: var(--pel-color-dark) !important;
+    color: var(--pel-color-dark) !important;
+}
+.course__content__nav--left:hover, .course__content__nav--right:hover{
+    background: var(--pel-color-accent) !important;
+    color: white !important;
+    text-decoration: none !important;
 }
 
 /* ============================================
@@ -349,12 +376,20 @@ h1, h2, h3, h4, h5, h6,
 
 /* ============================================
    NAVEGACIÓN DE PÁGINAS (números dentro del tema)
+   Sticky para mantenerla visible al hacer scroll
    ============================================ */
 
 .pel-page-nav {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: white !important;
     margin-bottom: var(--pel-space-md);
+    padding-left: var(--pel-space-sm);;
+    padding-top: var(--pel-space-sm);
     padding-bottom: var(--pel-space-sm);
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 2px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .pel-page-nav__inner {
@@ -592,21 +627,41 @@ h1, h2, h3, h4, h5, h6,
     margin-top: var(--pel-space-lg) !important;
     margin-bottom: var(--pel-space-lg) !important;
     
-    /* Fondo oscuro que se extiende hasta los bordes */
-    box-shadow: 
-        0 0 0 100vw var(--pel-color-dark),
-        0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    clip-path: inset(0 -100vw);
+    /* Fondo oscuro que se extiende hasta los bordes usando pseudo-elemento */
+    background: transparent !important;
+    z-index: 1;
+}
+
+.activity::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    right: 50%;
+    bottom: 0;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    width: 100vw;
+    background: var(--pel-color-dark);
+    z-index: -1;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.activity > * {
+    position: relative;
+    z-index: 2;
 }
 
 /* Estilos para el contenido */
 .activity h3 {
+    color: white !important;
     font-size: var(--pel-text-lg) !important;
     font-weight: 700 !important;
     margin-bottom: var(--pel-space-sm) !important;
 }
 
 .activity p {
+    color: rgba(255, 255, 255, 0.9) !important;
     font-size: var(--pel-text-base) !important;
     line-height: 1.6 !important;
     margin-bottom: var(--pel-space-md) !important;
