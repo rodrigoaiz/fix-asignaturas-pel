@@ -314,43 +314,183 @@ body {
 }
 
 /* ============================================
-   FOOTER (ancho completo)
+   FOOTER MODERNO
    ============================================ */
 
-.course__footer {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: var(--pel-space-xl) 0 0 0 !important;
-    padding: var(--pel-space-xl) var(--pel-space-md) !important;
-    background: var(--pel-color-dark) !important;
-    border: none !important;
-    border-top: 3px solid var(--pel-color-primary);
+/* Footer principal */
+.pel-footer {
+    width: 100%;
+    margin-top: var(--pel-space-xl);
 }
 
-.course__footer--logo,
-.course__footer--disclaimer {
+/* Franja PAPIIT (Naranja) */
+.pel-footer__papiit {
+    background: var(--pel-color-accent);
+    padding: var(--pel-space-md);
+    width: 100%;
+}
+
+.pel-footer__papiit-inner {
     max-width: 1200px;
     margin: 0 auto;
 }
 
-.course__footer--logo {
-    margin-bottom: var(--pel-space-md);
+.pel-footer__papiit-text {
+    color: white;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Sección principal oscura */
+.pel-footer__main {
+    background: var(--pel-color-dark);
+    padding: var(--pel-space-xl) var(--pel-space-md);
+    width: 100%;
+}
+
+.pel-footer__main-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--pel-space-lg);
+    align-items: center;
+}
+
+@media (min-width: 768px) {
+    .pel-footer__main-inner {
+        grid-template-columns: auto 2fr auto;
+        gap: var(--pel-space-md);
+    }
+}
+
+/* Logo */
+.pel-footer__logo {
     text-align: center;
 }
 
-.course__footer--disclaimer {
-    padding-top: var(--pel-space-md);
+@media (min-width: 768px) {
+    .pel-footer__logo {
+        text-align: left;
+    }
 }
 
-.course__footer--text {
-    color: rgba(255, 255, 255, 0.75) !important;
+.pel-footer__logo-img {
+    height: 48px;
+    width: auto;
+}
+
+/* Links */
+.pel-footer__links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pel-footer__links-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: var(--pel-space-md);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pel-footer__links-list li {
+    margin: 0;
+}
+
+.pel-footer__links-list a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
     font-size: 14px;
-    line-height: 1.7;
-    margin-bottom: var(--pel-space-sm);
+    transition: color 0.2s;
 }
 
-.course__footer--text:last-child {
+.pel-footer__links-list a:hover {
+    color: #FFC500;
+}
+
+/* Redes sociales */
+.pel-footer__social {
+    display: flex;
+    justify-content: center;
+}
+
+@media (min-width: 768px) {
+    .pel-footer__social {
+        justify-content: flex-end;
+    }
+}
+
+.pel-footer__social-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: var(--pel-space-sm);
+}
+
+.pel-footer__social-list li {
+    margin: 0;
+}
+
+.pel-footer__social-list a {
+    color: rgba(255, 255, 255, 0.85);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.pel-footer__social-list a:hover {
+    background: var(--pel-color-accent);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.pel-footer__social-list svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Disclaimer legal */
+.pel-footer__legal {
+    background: #0F0F0F;
+    padding: var(--pel-space-md);
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pel-footer__legal-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.pel-footer__legal-inner p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    line-height: 1.6;
+    margin: 0;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.pel-footer__legal-inner p:last-child {
     margin-bottom: 0;
+}
+
+/* Ocultar footer viejo si queda */
+.course__footer {
+    display: none !important;
 }
 
 /* ============================================
