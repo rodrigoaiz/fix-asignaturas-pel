@@ -164,10 +164,14 @@ class FolderReorganizer:
 def prepare_output(base_dir, output_dir, subject_name):
     """Copia la asignatura base al directorio de output"""
     source = base_dir / subject_name
-    dest = output_dir / subject_name
+    
+    # Extraer solo el nombre de la asignatura (sin la carpeta padre)
+    # Ej: "asignaturas-muestra/mate3" -> "mate3"
+    subject_base_name = Path(subject_name).name
+    dest = output_dir / subject_base_name
 
     if dest.exists():
-        print(f"  ♻  {subject_name} ya existe en output, recreando...")
+        print(f"  ♻  {subject_base_name} ya existe en output, recreando...")
         shutil.rmtree(dest)
 
     shutil.copytree(source, dest)
@@ -201,23 +205,44 @@ def main():
     output_path = Path(args.output).resolve()
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Buscar todas las asignaturas
-    exclude_folders = {'__pycache__', '.git', '.vscode', 'node_modules', 'out'}
-    subjects = sorted([
-        d for d in base_path.iterdir()
-        if d.is_dir()
-        and not d.name.startswith('.')
-        and d.name not in exclude_folders
-        and not d.name.endswith('_backup')
-    ])
+    # Buscar todas las asignaturas en asignaturas-muestra/ y asignaturas-produccion/
+    subjects = []
+    
+    # Buscar en asignaturas-muestra/
+    muestra_folder = base_path / "asignaturas-muestra"
+    if muestra_folder.exists() and muestra_folder.is_dir():
+        for subject_dir in sorted(muestra_folder.iterdir()):
+            if subject_dir.is_dir() and not subject_dir.name.startswith('.'):
+                # Verificar que tenga carpetas de unidades (u1, u2, etc.)
+                has_units = any(
+                    d.is_dir() and d.name.startswith('u') and d.name[1:].isdigit()
+                    for d in subject_dir.iterdir()
+                )
+                if has_units:
+                    # Guardar ruta relativa desde base_path
+                    subjects.append(muestra_folder.name + '/' + subject_dir.name)
+    
+    # Buscar en asignaturas-produccion/
+    produccion_folder = base_path / "asignaturas-produccion"
+    if produccion_folder.exists() and produccion_folder.is_dir():
+        for subject_dir in sorted(produccion_folder.iterdir()):
+            if subject_dir.is_dir() and not subject_dir.name.startswith('.'):
+                # Verificar que tenga carpetas de unidades (u1, u2, etc.)
+                has_units = any(
+                    d.is_dir() and d.name.startswith('u') and d.name[1:].isdigit()
+                    for d in subject_dir.iterdir()
+                )
+                if has_units:
+                    # Guardar ruta relativa desde base_path
+                    subjects.append(produccion_folder.name + '/' + subject_dir.name)
 
     if not subjects:
-        print("No se encontraron asignaturas en el directorio.")
+        print("No se encontraron asignaturas en asignaturas-muestra/ ni asignaturas-produccion/")
         return
 
     print("Asignaturas encontradas:")
     for i, subject in enumerate(subjects, 1):
-        print(f"  {i}. {subject.name}")
+        print(f"  {i}. {subject}")
 
     print(f"\nDirectorio base: {base_path}")
     print(f"Directorio output: {output_path}")
@@ -242,7 +267,7 @@ def main():
             index = int(choice) - 1
             if 0 <= index < len(subjects):
                 subjects_to_process = [subjects[index]]
-                print(f"\n🔄 Procesando solo: {subjects[index].name}")
+                print(f"\n🔄 Procesando solo: {subjects[index]}")
             else:
                 print("❌ Índice inválido.")
                 return
@@ -254,11 +279,11 @@ def main():
 
     for subject in subjects_to_process:
         print(f"\n{'='*50}")
-        print(f"PROCESANDO: {subject.name}")
+        print(f"PROCESANDO: {subject}")
         print(f"{'='*50}")
 
         # Copy to output directory
-        output_subject = prepare_output(base_path, output_path, subject.name)
+        output_subject = prepare_output(base_path, output_path, subject)
 
         # Reorganize in output
         reorganizer.reorganize_subject_folders(output_subject)
