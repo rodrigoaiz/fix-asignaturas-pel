@@ -82,6 +82,17 @@ h1, h2, h3, h4, h5, h6,
     font-weight: 700 !important;
 }
 
+.course__content__header {
+    padding: 1rem !important;
+}
+
+.course__content__header--head {
+    padding: 0 !important;
+}
+.course__content h2{
+    margin-top: 0 !important;
+}
+
 /* Párrafos del contenido con mejor legibilidad */
 .course__content p {
     font-family: var(--font-texto) !important;
@@ -175,6 +186,7 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .pel-header-institutional__logo span { 
+    font-family: var(--font-titulos);
     text-transform: uppercase;
     font-weight: bold;
     color: var(--pel-color-light);
@@ -194,7 +206,7 @@ h1, h2, h3, h4, h5, h6,
     color: white;
     text-decoration: none;
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 900;
     transition: all 0.15s;
     cursor: pointer;
     text-transform: uppercase;
@@ -581,7 +593,6 @@ h1, h2, h3, h4, h5, h6,
     margin-bottom: var(--pel-space-lg) !important;
     
     /* Fondo oscuro que se extiende hasta los bordes */
-    background: var(--pel-color-dark) !important;
     box-shadow: 
         0 0 0 100vw var(--pel-color-dark),
         0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -590,14 +601,12 @@ h1, h2, h3, h4, h5, h6,
 
 /* Estilos para el contenido */
 .activity h3 {
-    color: white !important;
     font-size: var(--pel-text-lg) !important;
     font-weight: 700 !important;
     margin-bottom: var(--pel-space-sm) !important;
 }
 
 .activity p {
-    color: rgba(255, 255, 255, 0.9) !important;
     font-size: var(--pel-text-base) !important;
     line-height: 1.6 !important;
     margin-bottom: var(--pel-space-md) !important;
