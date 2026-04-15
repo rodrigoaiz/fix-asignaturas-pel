@@ -86,10 +86,14 @@ class HTMLModifier:
     def prepare_output(self, subject_name):
         """Copia la asignatura base al directorio de output"""
         source = self.base_dir / subject_name
-        dest = self.output_dir / subject_name
+        
+        # Extraer solo el nombre de la asignatura (sin la carpeta padre)
+        # Ej: "asignaturas-muestra/mate3" -> "mate3"
+        subject_base_name = Path(subject_name).name
+        dest = self.output_dir / subject_base_name
 
         if dest.exists():
-            print(f"  ♻  {subject_name} ya existe en output, recreando...")
+            print(f"  ♻  {subject_base_name} ya existe en output, recreando...")
             shutil.rmtree(dest)
 
         shutil.copytree(source, dest)
@@ -97,25 +101,40 @@ class HTMLModifier:
         return dest
 
     def find_subjects(self):
-        """Encuentra todas las asignaturas en el directorio base"""
-        # Filtrar solo carpetas que contengan subcarpetas de unidades (u1, u2, etc.)
-        excluded = {'out', 'assets', 'docs', 'logo', '.git', '__pycache__'}
+        """Encuentra todas las asignaturas en las carpetas de muestra y producción"""
+        # Carpetas donde buscar asignaturas
+        subject_folders = [
+            self.base_dir / 'asignaturas-muestra',
+            self.base_dir / 'asignaturas-produccion'
+        ]
         
         self.subjects = []
-        for d in self.base_dir.iterdir():
-            if not d.is_dir() or d.name.startswith('.') or d.name in excluded:
+        
+        for folder in subject_folders:
+            if not folder.exists():
                 continue
             
-            # Verificar si tiene al menos una carpeta de unidad (u1, u2, etc.)
-            has_units = any(
-                sub.is_dir() and self.RE_UNIT_PATTERN.match(sub.name)
-                for sub in d.iterdir()
-            )
-            
-            if has_units:
-                self.subjects.append(d.name)
+            # Buscar asignaturas dentro de esta carpeta
+            for d in folder.iterdir():
+                if not d.is_dir() or d.name.startswith('.'):
+                    continue
+                
+                # Verificar si tiene al menos una carpeta de unidad (u1, u2, etc.)
+                has_units = any(
+                    sub.is_dir() and self.RE_UNIT_PATTERN.match(sub.name)
+                    for sub in d.iterdir()
+                )
+                
+                if has_units:
+                    # Guardar la ruta relativa desde base_dir
+                    relative_path = d.relative_to(self.base_dir)
+                    self.subjects.append(str(relative_path))
         
-        print(f"Encontradas asignaturas: {', '.join(self.subjects)}")
+        if self.subjects:
+            print(f"Encontradas asignaturas: {', '.join(self.subjects)}")
+        else:
+            print("⚠️  No se encontraron asignaturas en asignaturas-muestra/ ni asignaturas-produccion/")
+        
         return self.subjects
 
     def find_html_files(self, subject_path):

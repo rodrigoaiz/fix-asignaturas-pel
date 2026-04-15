@@ -108,21 +108,27 @@ rm -rf out && python3 html_modifier_v2_navigation.py
 ```
 fix-asignaturas-pel/              ← Tu directorio del proyecto
 │
-├── 📁 antropologia-1/          ← Fuente (NO TOCAR)
-├── 📁 mate3/                   ← Fuente (NO TOCAR)  
-├── 📁 derecho-1/               ← Fuente (NO TOCAR)
+├── 📁 asignaturas-muestra/      ← Asignaturas de prueba (EN GIT)
+│   ├── antropologia-1/
+│   ├── mate3/
+│   └── derecho-1/
 │
-├── 📁 assets/                  ← EDITA AQUÍ
-│   ├── pel-navigation.css     ← Estilos de navegación
-│   ├── pel-navigation.js      ← JavaScript de navegación
-│   └── logo-pel.svg           ← Logo PEL
+├── 📁 asignaturas-produccion/   ← Todas las demás (NO EN GIT)
+│   ├── historia-1/
+│   ├── fisica-1/
+│   └── ... (agrega aquí tus asignaturas)
+│
+├── 📁 assets/                   ← EDITA AQUÍ
+│   ├── pel-navigation.css      ← Estilos de navegación
+│   ├── pel-navigation.js       ← JavaScript de navegación
+│   └── logo-pel.svg            ← Logo PEL
 │
 ├── 📁 logo/
-│   └── logo-pel.svg           ← Logo original
+│   └── logo-pel.svg            ← Logo original
 │
 ├── 📄 html_modifier_v2_navigation.py  ← Script principal
 │
-└── 📁 out/                    ← Output (se regenera)
+└── 📁 out/                     ← Output (se regenera)
     ├── antropologia-1/
     │   ├── u1/
     │   │   ├── assets/
@@ -136,6 +142,21 @@ fix-asignaturas-pel/              ← Tu directorio del proyecto
     │   └── u3/
     └── mate3/
 ```
+
+### 📝 Explicación de carpetas:
+
+#### `asignaturas-muestra/` 
+- **Propósito**: Asignaturas de prueba para desarrollo
+- **En git**: ✅ SÍ (se suben al repositorio)
+- **Uso**: Testing, ejemplos, documentación
+
+#### `asignaturas-produccion/`
+- **Propósito**: Todas las demás asignaturas reales
+- **En git**: ❌ NO (está en `.gitignore`)
+- **Uso**: Procesamiento de asignaturas completas para producción
+- **Nota**: Coloca aquí tus asignaturas sin preocuparte por el tamaño
+
+El script procesa **AMBAS** carpetas automáticamente.
 
 ---
 
