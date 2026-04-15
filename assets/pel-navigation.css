@@ -12,6 +12,8 @@ body {
     background: #fafafa !important;
     font-family: var(--font-texto) !important;
     color: #2B2B2B !important;
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
 }
 
 :root {
@@ -620,7 +622,7 @@ h1, h2, h3, h4, h5, h6,
 
 /* Contenedor con fondo oscuro que se extiende full-width */
 .activity {
-    width: auto !important;
+    width: 100% !important;
     max-width: none !important;
     position: relative !important;
     padding: var(--pel-space-xl) var(--pel-space-md) !important;
