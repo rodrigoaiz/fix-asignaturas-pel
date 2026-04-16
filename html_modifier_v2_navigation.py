@@ -645,7 +645,8 @@ class HTMLModifier:
             'derecho-1': 'Derecho I',
             'cibernetica-2': 'Cibernética y Computación II',
             'fisica-1': 'Física I',
-            'administracion-1': 'Administración I'
+            'administracion-1': 'Administración I',
+            'administracion-2': 'Administración II'
         }
         display_name = subject_names.get(subject_name, subject_name.replace('-', ' ').title())
         
