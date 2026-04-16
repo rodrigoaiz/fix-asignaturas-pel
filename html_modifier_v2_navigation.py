@@ -1020,6 +1020,20 @@ class HTMLModifier:
             html_content = self.RE_LEFT_DATA_LINK.sub(r'\g<1>\g<2>', html_content)
             html_content = self.RE_LEFT_HREF.sub(r'\g<1>\g<2>', html_content)
 
+        # FIX: Asegurar que las flechas tengan los IDs necesarios para JavaScript
+        # Agregar id="pLeft" si no existe
+        html_content = re.sub(
+            r'(<a\s+[^>]*class="[^"]*course__content__nav--left[^"]*"(?![^>]*\sid=)[^>]*)(>)',
+            r'\1 id="pLeft"\2',
+            html_content
+        )
+        # Agregar id="pRight" si no existe
+        html_content = re.sub(
+            r'(<a\s+[^>]*class="[^"]*course__content__nav--right[^"]*"(?![^>]*\sid=)[^>]*)(>)',
+            r'\1 id="pRight"\2',
+            html_content
+        )
+
         return html_content
 
     def convert_activities_to_iframes(self, html_content, moodle_activities, moodle_url):
