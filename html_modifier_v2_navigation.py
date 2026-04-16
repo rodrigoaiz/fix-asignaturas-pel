@@ -1070,7 +1070,8 @@ class HTMLModifier:
     def process_html_file(self, file_path, subject):
         """Procesa un archivo HTML individual — una sola pasada de lectura/escritura"""
         action = "PROCESARÍA" if self.dry_run else "Procesando"
-        print(f"  {action}: {file_path.relative_to(self.output_dir)}")
+        relative_base = self.base_dir if self.dry_run else self.output_dir
+        print(f"  {action}: {file_path.relative_to(relative_base)}")
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -1197,6 +1198,14 @@ class HTMLModifier:
         print(f"=== {mode} de HTML ===\n")
         print(f"  Fuente: {self.base_dir}")
         print(f"  Output: {self.output_dir}")
+
+        # Limpiar directorio output completo antes de procesar todas las asignaturas
+        if not self.dry_run and self.output_dir.exists():
+            import shutil
+            print(f"\n🗑️  Limpiando directorio output completo: {self.output_dir}")
+            shutil.rmtree(self.output_dir)
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            print(f"✅ Directorio output limpio\n")
 
         self.find_subjects()
 
