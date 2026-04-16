@@ -6,20 +6,15 @@
 // Esperar a que el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Función para convertir data-link en href navegable
+    // Función para validar flechas de navegación
     const setupNavigationArrows = () => {
         const pLeft = document.getElementById('pLeft');
         const pRight = document.getElementById('pRight');
         
         if (pLeft) {
-            const dataLink = pLeft.getAttribute('data-link');
-            if (dataLink) {
-                // Construir URL relativa desde la ubicación actual
-                // Estamos en: /mate3/u5/t2/1.html
-                // data-link viene en formato: "u5/t1/4.html" o "u1/t5/2.html"
-                // Necesitamos ir 2 niveles arriba: ../../u5/t1/4.html
-                const href = `../../${dataLink}`;
-                pLeft.setAttribute('href', href);
+            const href = pLeft.getAttribute('href');
+            if (href && href.trim() !== '') {
+                // Ya tiene href correcto del HTML
                 pLeft.style.cursor = 'pointer';
             } else {
                 // No hay página anterior, ocultar
@@ -28,11 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (pRight) {
-            const dataLink = pRight.getAttribute('data-link');
-            if (dataLink) {
-                // Construir URL relativa desde la ubicación actual
-                const href = `../../${dataLink}`;
-                pRight.setAttribute('href', href);
+            const href = pRight.getAttribute('href');
+            if (href && href.trim() !== '') {
+                // Ya tiene href correcto del HTML
                 pRight.style.cursor = 'pointer';
             } else {
                 // No hay página siguiente, ocultar

@@ -439,6 +439,59 @@ class HTMLModifier:
             'current_page': current_page,
         }
 
+    @staticmethod
+    def _absolute_to_relative_path(current_path, target_absolute_path):
+        """
+        Convierte una ruta absoluta (u1/t2/3.html) a relativa desde current_path
+        
+        Ejemplos:
+        - current: u1/t2/1.html, target: u1/t2/2.html -> 2.html
+        - current: u1/t2/3.html, target: u1/t3/1.html -> ../t3/1.html
+        - current: u1/t2/5.html, target: u2/t1/1.html -> ../../u2/t1/1.html
+        """
+        from pathlib import Path
+        
+        # Extraer info del path actual
+        current_parts = Path(current_path).parts
+        # Encontrar índice de la unidad (u1, u2, etc)
+        current_unit_idx = None
+        for i, part in enumerate(current_parts):
+            if part.startswith('u') and len(part) >= 2 and part[1:].isdigit():
+                current_unit_idx = i
+                break
+        
+        if current_unit_idx is None:
+            return target_absolute_path  # Fallback
+        
+        # Current está en: .../unidad/tema/archivo.html
+        # Necesitamos subir 2 niveles (archivo + tema) para llegar a la carpeta de unidad
+        current_theme_idx = current_unit_idx + 1
+        
+        # Split target path
+        target_parts = target_absolute_path.split('/')
+        
+        # Si está en el mismo tema, solo devolver el nombre del archivo
+        if len(target_parts) >= 3:
+            target_unit = target_parts[0]
+            target_theme = target_parts[1]
+            target_file = '/'.join(target_parts[2:])
+            
+            current_unit = current_parts[current_unit_idx]
+            current_theme = current_parts[current_theme_idx]
+            
+            # Mismo tema: solo el archivo
+            if target_unit == current_unit and target_theme == current_theme:
+                return target_file
+            
+            # Misma unidad, diferente tema: ../tema/archivo
+            if target_unit == current_unit:
+                return f"../{target_theme}/{target_file}"
+            
+            # Diferente unidad: ../../unidad/tema/archivo
+            return f"../../{target_absolute_path}"
+        
+        return target_absolute_path  # Fallback
+
     # ─────────────────────────────────────────────
     #  Navigation calculation
     # ─────────────────────────────────────────────
@@ -589,7 +642,10 @@ class HTMLModifier:
         subject_names = {
             'mate3': 'Matemáticas III',
             'antropologia-1': 'Antropología I',
-            'derecho-1': 'Derecho I'
+            'derecho-1': 'Derecho I',
+            'cibernetica-2': 'Cibernética y Computación II',
+            'fisica-1': 'Física I',
+            'administracion-1': 'Administración I'
         }
         display_name = subject_names.get(subject_name, subject_name.replace('-', ' ').title())
         
@@ -891,20 +947,34 @@ class HTMLModifier:
         """
         Arregla la navegación de flechas.
         FIX: Limpia URLs estáticas de Moodle cuando no hay siguiente/anterior.
+        FIX: Convierte rutas absolutas a relativas.
+        FIX: Agrega href si solo existe data-link.
         """
         if not unit_themes:
             return html_content
 
-        next_path = self.calculate_next_navigation(current_path, unit_themes)
-        prev_path = self.calculate_previous_navigation(current_path, unit_themes)
+        next_path_abs = self.calculate_next_navigation(current_path, unit_themes)
+        prev_path_abs = self.calculate_previous_navigation(current_path, unit_themes)
+        
+        # Convertir a rutas relativas
+        next_path = self._absolute_to_relative_path(current_path, next_path_abs) if next_path_abs else None
+        prev_path = self._absolute_to_relative_path(current_path, prev_path_abs) if prev_path_abs else None
 
         # ── Right arrow (next) ──
         if next_path:
+            # Actualizar data-link
             html_content = self.RE_RIGHT_DATA_LINK.sub(
                 rf'\g<1>{next_path}\g<2>', html_content
             )
+            # Actualizar href si existe
             html_content = self.RE_RIGHT_HREF.sub(
                 rf'\g<1>{next_path}\g<2>', html_content
+            )
+            # Agregar href si no existe (solo tiene data-link)
+            html_content = re.sub(
+                r'(<a\s+[^>]*class="[^"]*course__content__nav--right[^"]*"[^>]*)(data-link="[^"]*")',
+                lambda m: rf'{m.group(1)}href="{next_path}" {m.group(2)}' if 'href=' not in m.group(0) else m.group(0),
+                html_content
             )
             html_content = html_content.replace(
                 'class="course__content__nav--right hidden"',
@@ -922,11 +992,19 @@ class HTMLModifier:
 
         # ── Left arrow (previous) ──
         if prev_path:
+            # Actualizar data-link
             html_content = self.RE_LEFT_DATA_LINK.sub(
                 rf'\g<1>{prev_path}\g<2>', html_content
             )
+            # Actualizar href si existe
             html_content = self.RE_LEFT_HREF.sub(
                 rf'\g<1>{prev_path}\g<2>', html_content
+            )
+            # Agregar href si no existe (solo tiene data-link)
+            html_content = re.sub(
+                r'(<a\s+[^>]*class="[^"]*course__content__nav--left[^"]*"[^>]*)(data-link="[^"]*")',
+                lambda m: rf'{m.group(1)}href="{prev_path}" {m.group(2)}' if 'href=' not in m.group(0) else m.group(0),
+                html_content
             )
             html_content = html_content.replace(
                 'class="course__content__nav--left hidden"',
