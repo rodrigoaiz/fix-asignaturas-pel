@@ -1054,7 +1054,53 @@ class HTMLModifier:
                     f'<iframe src="{full_url}" width="100%" height="600" '
                     f'style="border: none;" title="{id_html}"></iframe>'
                 )
-                html_content = html_content.replace(match.group(0), iframe)
+                
+                # Verificar si el enlace original está dentro de un <div class="activity">
+                # Buscamos hacia atrás desde la posición del match
+                match_start = match.start()
+                context_before = html_content[max(0, match_start-1000):match_start]
+                
+                # Si NO está dentro de <div class="activity">, envolver el iframe
+                # Buscamos el último <div> antes del enlace para ver si tiene class="activity"
+                last_div_match = None
+                for div_match in re.finditer(r'<div[^>]*>', context_before):
+                    last_div_match = div_match
+                
+                is_in_activity = False
+                if last_div_match:
+                    last_div = last_div_match.group(0)
+                    is_in_activity = 'class="activity"' in last_div or "class='activity'" in last_div
+                
+                if not is_in_activity:
+                    # Determinar el tipo de actividad por el URL
+                    activity_type = "Actividad"
+                    icon = "cuestionario_icono.svg"
+                    
+                    if "forum" in activity['url']:
+                        activity_type = "Foro"
+                        icon = "forum.svg"
+                    elif "quiz" in activity['url']:
+                        activity_type = "Cuestionario"
+                        icon = "quizz.svg"
+                    elif "assign" in activity['url']:
+                        activity_type = "Tarea"
+                        icon = "tarea.svg"
+                    elif "hvp" in activity['url']:
+                        activity_type = "Actividad interactiva"
+                        icon = "interactivo.svg"
+                    
+                    # Envolver en estructura de actividad
+                    wrapped_iframe = f'''<div class="activity">
+    <span><img src="../assets/images/{icon}" width="60"/></span>
+    <h3>{activity_type}</h3>
+    <div class="button_activity">
+        {iframe}
+    </div>
+</div>'''
+                    html_content = html_content.replace(match.group(0), wrapped_iframe)
+                else:
+                    # Ya está en un div.activity, solo reemplazar el enlace
+                    html_content = html_content.replace(match.group(0), iframe)
 
         return html_content
 
