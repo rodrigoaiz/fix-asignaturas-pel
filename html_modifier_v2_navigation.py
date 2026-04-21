@@ -235,7 +235,7 @@ class HTMLModifier:
     )
     RE_MOODLE_URL = re.compile(r'moodleURL:\s*["\']([^"\']*)["\']')
     RE_UNIT_IN_JS = re.compile(
-        r'\{\s*unit:\s*["\']([^"\']*)["\'],\s*themes:\s*\[([\s\S]*?)\]\s*\}'
+        r'\{\s*unit:\s*["\']([^"\']*)["\'],\s*themes:\s*\[([\s\S]*?)\]\s*,?\s*\}'
     )
     RE_THEME_IN_JS = re.compile(
         r'\{\s*themeName:\s*["\']([^"\']*)["\'],\s*themeURL:\s*["\']([^"\']*)["\'],\s*pages:\s*["\']([^"\']*)["\']'
