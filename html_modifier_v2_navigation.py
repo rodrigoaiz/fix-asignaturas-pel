@@ -1056,51 +1056,153 @@ class HTMLModifier:
                 )
                 
                 # Verificar si el enlace original está dentro de un <div class="activity">
-                # Buscamos hacia atrás desde la posición del match
+                # Estrategia: buscar hacia atrás "<div class="activity">" y verificar
+                # que el enlace esté entre ese div y su cierre
                 match_start = match.start()
-                context_before = html_content[max(0, match_start-1000):match_start]
+                match_end = match.end()
                 
-                # Si NO está dentro de <div class="activity">, envolver el iframe
-                # Buscamos el último <div> antes del enlace para ver si tiene class="activity"
-                last_div_match = None
-                for div_match in re.finditer(r'<div[^>]*>', context_before):
-                    last_div_match = div_match
+                # Buscar hacia atrás por <div class="activity">
+                search_distance = 10000  # Buscar hasta 10KB atrás
+                context_start = max(0, match_start - search_distance)
+                context_before = html_content[context_start:match_start]
+                
+                # Buscar la última ocurrencia de <div class="activity"> antes del enlace
+                activity_div_pattern = r'<div\s+class="activity">'
+                activity_matches = list(re.finditer(activity_div_pattern, context_before))
                 
                 is_in_activity = False
-                if last_div_match:
-                    last_div = last_div_match.group(0)
-                    is_in_activity = 'class="activity"' in last_div or "class='activity'" in last_div
+                container_div_full = None
+                
+                if activity_matches:
+                    # Obtener el último match (el más cercano al enlace)
+                    last_activity_match = activity_matches[-1]
+                    activity_div_start = context_start + last_activity_match.start()
+                    
+                    # Verificar que el enlace está dentro de ese div (y no después de su cierre)
+                    # Contar divs desde activity_div_start hasta match_start
+                    temp_content = html_content[activity_div_start:match_start]
+                    div_depth = 0
+                    
+                    for i in range(len(temp_content)):
+                        if temp_content[i:i+4] == '<div':
+                            div_depth += 1
+                        elif temp_content[i:i+6] == '</div>':
+                            div_depth -= 1
+                    
+                    # Si div_depth > 0, significa que el div.activity sigue abierto
+                    is_in_activity = (div_depth > 0)
+                
+                # Si NO está en activity, buscar el div contenedor para reemplazarlo
+                if not is_in_activity:
+                    # Buscar el último <div> antes del enlace (cualquier div)
+                    all_divs = list(re.finditer(r'<div[^>]*>', context_before))
+                    if all_divs:
+                        last_div = all_divs[-1]
+                        last_div_start = context_start + last_div.start()
+                        
+                        # Encontrar el cierre de ese div
+                        temp_content = html_content[last_div_start:]
+                        div_depth = 0
+                        div_end = -1
+                        
+                        for i in range(len(temp_content)):
+                            if temp_content[i:i+4] == '<div':
+                                div_depth += 1
+                            elif temp_content[i:i+6] == '</div>':
+                                div_depth -= 1
+                                if div_depth == 0:
+                                    div_end = last_div_start + i + 6
+                                    break
+                        
+                        if div_end > last_div_start:
+                            container_div_full = html_content[last_div_start:div_end]
                 
                 if not is_in_activity:
                     # Determinar el tipo de actividad por el URL
                     activity_type = "Actividad"
-                    icon = "cuestionario_icono.svg"
+                    icon_name = "cuestionario_icono"
                     
                     if "forum" in activity['url']:
                         activity_type = "Foro"
-                        icon = "forum.svg"
+                        icon_name = "foro_icon"  # biología-3 usa foro_icon.svg
                     elif "quiz" in activity['url']:
                         activity_type = "Cuestionario"
-                        icon = "quizz.svg"
+                        icon_name = "cuestionario_icono"
                     elif "assign" in activity['url']:
                         activity_type = "Tarea"
-                        icon = "tarea.svg"
+                        icon_name = "upload_icono"  # tarea usa upload
                     elif "hvp" in activity['url']:
                         activity_type = "Actividad interactiva"
-                        icon = "interactivo.svg"
+                        icon_name = "h5p"
+                    
+                    # Detectar si los íconos están en icons/ o images/
+                    # Intentamos ambas rutas con ambas extensiones comunes
+                    icon_path_variants = [
+                        f'../assets/icons/{icon_name}.svg',
+                        f'../assets/images/{icon_name}.svg',
+                        f'../assets/icons/{icon_name.replace("_icono", "")}.svg',
+                        f'../assets/images/{icon_name.replace("_icono", "")}.svg',
+                    ]
+                    
+                    # Si es forum, intentar también forum.svg (biología-2)
+                    if icon_name == "foro_icon":
+                        icon_path_variants.extend([
+                            '../assets/images/forum.svg',
+                            '../assets/icons/forum.svg',
+                        ])
+                    
+                    # Si es quiz, intentar también quizz.svg (biología-2)
+                    if icon_name == "cuestionario_icono":
+                        icon_path_variants.extend([
+                            '../assets/images/quizz.svg',
+                            '../assets/icons/quizz.svg',
+                        ])
+                    
+                    # Usar la primera variante (se resolverá en runtime)
+                    icon_path = icon_path_variants[0]
                     
                     # Envolver en estructura de actividad
                     wrapped_iframe = f'''<div class="activity">
-    <span><img src="../assets/images/{icon}" width="60"/></span>
+    <span><img src="{icon_path}" width="60"/></span>
     <h3>{activity_type}</h3>
     <div class="button_activity">
         {iframe}
     </div>
 </div>'''
-                    html_content = html_content.replace(match.group(0), wrapped_iframe)
+                    
+                    # Si encontramos el div contenedor completo, reemplazarlo
+                    if container_div_full:
+                        html_content = html_content.replace(container_div_full, wrapped_iframe)
+                    else:
+                        # Fallback: solo reemplazar el enlace
+                        html_content = html_content.replace(match.group(0), wrapped_iframe)
                 else:
-                    # Ya está en un div.activity, solo reemplazar el enlace
-                    html_content = html_content.replace(match.group(0), iframe)
+                    # Ya está en un div.activity
+                    # Buscar el <div class="button_activity"> que contiene el enlace
+                    button_activity_pattern = re.compile(
+                        r'<div class="button_activity">.*?</div>', re.DOTALL
+                    )
+                    # Buscar en contexto cercano al enlace
+                    search_start = max(0, match_start - 200)
+                    search_end = min(len(html_content), match_end + 200)
+                    search_context = html_content[search_start:search_end]
+                    
+                    button_match = button_activity_pattern.search(search_context)
+                    if button_match and id_html in button_match.group(0):
+                        # Reemplazar todo el div button_activity con solo el iframe
+                        button_div_full = button_match.group(0)
+                        # Buscar en el HTML completo
+                        abs_button_start = search_start + button_match.start()
+                        abs_button_end = search_start + button_match.end()
+                        button_div_in_full_html = html_content[abs_button_start:abs_button_end]
+                        
+                        html_content = html_content.replace(
+                            button_div_in_full_html,
+                            f'<div class="button_activity">{iframe}</div>'
+                        )
+                    else:
+                        # Fallback: solo reemplazar el enlace
+                        html_content = html_content.replace(match.group(0), iframe)
 
         return html_content
 
