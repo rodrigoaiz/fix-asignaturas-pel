@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PYTHON_SCRIPT="$SCRIPT_DIR/html_modifier_v2_navigation.py"
+
+show_help() {
+  cat <<'EOF'
+Uso:
+  ./override RUTA
+  ./override --edit RUTA
+  ./override --generate RUTA
+  ./override --generate --edit RUTA
+  ./override --list
+  ./override --validate
+
+Ejemplos:
+  ./override asignaturas-produccion/biologia-1/u1/u1/t1/3.html
+  ./override --edit out/biologia-1/u1/t1/3.html
+
+Opciones:
+  --generate   Regenera `out/` antes de crear el override
+  --edit       Abre el archivo override con `$EDITOR` al terminar
+  --list       Lista los overrides activos
+  --validate   Valida la estructura de overrides
+  -h, --help   Muestra esta ayuda
+EOF
+}
+
+GENERATE=0
+EDIT=0
+LIST=0
+VALIDATE=0
+TARGET=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --generate)
+      GENERATE=1
+      shift
+      ;;
+    --edit)
+      EDIT=1
+      shift
+      ;;
+    --list)
+      LIST=1
+      shift
+      ;;
+    --validate)
+      VALIDATE=1
+      shift
+      ;;
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    *)
+      if [[ -n "$TARGET" ]]; then
+        printf 'Error: solo se admite una ruta objetivo\n' >&2
+        exit 1
+      fi
+      TARGET="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ $LIST -eq 1 ]]; then
+  python3 "$PYTHON_SCRIPT" --list-overrides
+  exit 0
+fi
+
+if [[ $VALIDATE -eq 1 ]]; then
+  python3 "$PYTHON_SCRIPT" --validate-overrides
+  exit 0
+fi
+
+if [[ -z "$TARGET" ]]; then
+  show_help
+  exit 1
+fi
+
+if [[ $GENERATE -eq 1 ]]; then
+  rm -rf "$SCRIPT_DIR/out"
+  python3 "$PYTHON_SCRIPT"
+fi
+
+python3 "$PYTHON_SCRIPT" --init-override "$TARGET"
+
+if [[ $EDIT -eq 1 ]]; then
+  NORMALIZED_PATH="$(python3 "$PYTHON_SCRIPT" --resolve-override-path "$TARGET" | tail -n 1)"
+  OVERRIDE_FILE="$SCRIPT_DIR/overrides/$NORMALIZED_PATH"
+  EDITOR_CMD="${EDITOR:-nano}"
+  "$EDITOR_CMD" "$OVERRIDE_FILE"
+fi

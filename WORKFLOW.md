@@ -88,6 +88,35 @@ nano html_modifier_v2_navigation.py
 rm -rf out && python3 html_modifier_v2_navigation.py
 ```
 
+### 5. Editar contenido HTML sin perder cambios
+
+```bash
+# GENERA primero
+rm -rf out && python3 html_modifier_v2_navigation.py
+
+# CREA override desde un HTML generado
+python3 html_modifier_v2_navigation.py --init-override antropologia-1/u1/t1/3.html
+
+# o desde la ruta original de la asignatura
+python3 html_modifier_v2_navigation.py --init-override asignaturas-produccion/biologia-1/u1/u1/t1/3.html
+
+# helper corto
+./override asignaturas-produccion/biologia-1/u1/u1/t1/3.html
+
+# helper que crea y abre el archivo
+./override --edit asignaturas-produccion/biologia-1/u1/u1/t1/3.html
+
+# EDITA el override
+nano overrides/antropologia-1/u1/t1/3.html
+
+# REGENERA todo
+rm -rf out && python3 html_modifier_v2_navigation.py
+```
+
+El override reemplaza el HTML generado correspondiente al final del proceso.
+No necesitas crear carpetas a mano: `--init-override` normaliza la ruta y crea toda la estructura en `overrides/`.
+Si quieres, `./override --generate ...` regenera `out/` antes de crear el override.
+
 ---
 
 ## ⚠️ REGLAS IMPORTANTES
@@ -98,6 +127,7 @@ rm -rf out && python3 html_modifier_v2_navigation.py
 
 ### ✅ SIEMPRE haz esto:
 - **Edita solo archivos en `/assets/`** o el script Python
+- **Para contenido HTML puntual, edita en `/overrides/`**
 - **Regenera con el comando completo** después de editar
 - **Verifica cambios en `/out/`** abriendo un HTML en el navegador
 
@@ -122,6 +152,10 @@ fix-asignaturas-pel/              ← Tu directorio del proyecto
 │   ├── pel-navigation.css      ← Estilos de navegación
 │   ├── pel-navigation.js       ← JavaScript de navegación
 │   └── logo-pel.svg            ← Logo PEL
+│
+├── 📁 overrides/                ← EDITA HTMLS PERSONALIZADOS AQUÍ
+│   ├── README.md
+│   └── antropologia-1/u1/t1/3.html
 │
 ├── 📁 logo/
 │   └── logo-pel.svg            ← Logo original
@@ -203,6 +237,12 @@ google-chrome out/mate3/u1/t1/1.html
 python3 html_modifier_v2_navigation.py 2>&1 | less
 ```
 
+### Ver overrides activos:
+```bash
+python3 html_modifier_v2_navigation.py --list-overrides
+python3 html_modifier_v2_navigation.py --validate-overrides
+```
+
 ### Ver qué se copió:
 ```bash
 find out/antropologia-1/u1/assets -type f
@@ -216,6 +256,12 @@ find out/antropologia-1/u1/assets -type f
 1. Verifica que editaste `/assets/pel-navigation.css` (NO el de `/out/`)
 2. Borra todo y regenera: `rm -rf out && python3 html_modifier_v2_navigation.py`
 3. Refresca el navegador con Ctrl+Shift+R (forzar recarga)
+
+### Mi cambio de contenido se perdio
+1. Verifica que el cambio esta en `overrides/` y no en `out/`
+2. Lista overrides: `python3 html_modifier_v2_navigation.py --list-overrides`
+3. Valida estructura: `python3 html_modifier_v2_navigation.py --validate-overrides`
+4. Regenera sin `--no-overrides`
 
 ### El logo no aparece
 1. Verifica que existe: `ls -lh assets/logo-pel.svg`
@@ -269,7 +315,8 @@ Para agregar más, solo copia la carpeta al directorio base y ejecuta el script.
 
 **Para cambiar algo:**
 1. Edita archivo en `/assets/`
-2. Ejecuta: `rm -rf out && python3 html_modifier_v2_navigation.py`
-3. Abre HTML en navegador para verificar
+2. Si es HTML puntual, crea/edita override en `/overrides/`
+3. Ejecuta: `rm -rf out && python3 html_modifier_v2_navigation.py`
+4. Abre HTML en navegador para verificar
 
 **Eso es todo.** 🚀
