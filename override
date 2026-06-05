@@ -13,14 +13,23 @@ Uso:
   ./override --generate --edit RUTA
   ./override --list
   ./override --validate
+  ./override --config RUTA
+  ./override --config --all-units RUTA
+  ./override --config --unit-specific RUTA
 
 Ejemplos:
   ./override asignaturas-produccion/biologia-1/u1/u1/t1/3.html
   ./override --edit out/biologia-1/u1/t1/3.html
+  ./override asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+  ./override --config --all-units asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+  ./override --config --unit-specific asignaturas-produccion/biologia-1/u2/assets/scripts/activities_moodle.js
 
 Opciones:
   --generate   Regenera `out/` antes de crear el override
   --edit       Abre el archivo override con `$EDITOR` al terminar
+  --config     Crea un config-override aplicado antes de procesar HTML
+  --all-units  Usar con `--config`; hoy es el comportamiento default
+  --unit-specific  Usar con `--config` para guardar solo la unidad indicada
   --list       Lista los overrides activos
   --validate   Valida la estructura de overrides
   -h, --help   Muestra esta ayuda
@@ -31,6 +40,9 @@ GENERATE=0
 EDIT=0
 LIST=0
 VALIDATE=0
+CONFIG=0
+ALL_UNITS=0
+UNIT_SPECIFIC=0
 TARGET=""
 
 while [[ $# -gt 0 ]]; do
@@ -41,6 +53,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --edit)
       EDIT=1
+      shift
+      ;;
+    --config)
+      CONFIG=1
+      shift
+      ;;
+    --all-units)
+      ALL_UNITS=1
+      shift
+      ;;
+    --unit-specific)
+      UNIT_SPECIFIC=1
       shift
       ;;
     --list)
@@ -68,12 +92,19 @@ done
 
 if [[ $LIST -eq 1 ]]; then
   python3 "$PYTHON_SCRIPT" --list-overrides
+  python3 "$PYTHON_SCRIPT" --list-config-overrides
   exit 0
 fi
 
 if [[ $VALIDATE -eq 1 ]]; then
   python3 "$PYTHON_SCRIPT" --validate-overrides
+  python3 "$PYTHON_SCRIPT" --validate-config-overrides
   exit 0
+fi
+
+if [[ $ALL_UNITS -eq 1 && $UNIT_SPECIFIC -eq 1 ]]; then
+  printf 'Error: usa solo una de --all-units o --unit-specific\n' >&2
+  exit 1
 fi
 
 if [[ -z "$TARGET" ]]; then
@@ -86,11 +117,32 @@ if [[ $GENERATE -eq 1 ]]; then
   python3 "$PYTHON_SCRIPT"
 fi
 
-python3 "$PYTHON_SCRIPT" --init-override "$TARGET"
+if [[ $CONFIG -eq 1 ]]; then
+  CONFIG_ARGS=(--init-config-override "$TARGET")
+  if [[ $UNIT_SPECIFIC -eq 1 ]]; then
+    CONFIG_ARGS=(--unit-specific "${CONFIG_ARGS[@]}")
+  elif [[ $ALL_UNITS -eq 1 ]]; then
+    CONFIG_ARGS=(--all-units "${CONFIG_ARGS[@]}")
+  fi
+  python3 "$PYTHON_SCRIPT" "${CONFIG_ARGS[@]}"
+else
+  python3 "$PYTHON_SCRIPT" --init-override "$TARGET"
+fi
 
 if [[ $EDIT -eq 1 ]]; then
-  NORMALIZED_PATH="$(python3 "$PYTHON_SCRIPT" --resolve-override-path "$TARGET" | tail -n 1)"
-  OVERRIDE_FILE="$SCRIPT_DIR/overrides/$NORMALIZED_PATH"
+  if [[ $CONFIG -eq 1 ]]; then
+    RESOLVE_ARGS=(--resolve-config-override-path "$TARGET")
+    if [[ $UNIT_SPECIFIC -eq 1 ]]; then
+      RESOLVE_ARGS=(--unit-specific "${RESOLVE_ARGS[@]}")
+    elif [[ $ALL_UNITS -eq 1 ]]; then
+      RESOLVE_ARGS=(--all-units "${RESOLVE_ARGS[@]}")
+    fi
+    NORMALIZED_PATH="$(python3 "$PYTHON_SCRIPT" "${RESOLVE_ARGS[@]}" | tail -n 1)"
+    OVERRIDE_FILE="$SCRIPT_DIR/config-overrides/$NORMALIZED_PATH"
+  else
+    NORMALIZED_PATH="$(python3 "$PYTHON_SCRIPT" --resolve-override-path "$TARGET" | tail -n 1)"
+    OVERRIDE_FILE="$SCRIPT_DIR/overrides/$NORMALIZED_PATH"
+  fi
   EDITOR_CMD="${EDITOR:-nano}"
   "$EDITOR_CMD" "$OVERRIDE_FILE"
 fi

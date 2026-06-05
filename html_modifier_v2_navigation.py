@@ -249,16 +249,29 @@ class HTMLModifier:
     RE_SRC_DOUBLE_DOT = re.compile(r'src="../../assets/')
     RE_NAV_DOUBLE_UNIT = re.compile(r'href="../(u\d+)/\1/')
 
-    def __init__(self, base_dir, output_dir, dry_run=False, overrides_dir=None, apply_overrides=True):
+    def __init__(
+        self,
+        base_dir,
+        output_dir,
+        dry_run=False,
+        overrides_dir=None,
+        config_overrides_dir=None,
+        apply_overrides=True,
+        apply_config_overrides=True,
+    ):
         self.base_dir = Path(base_dir)
         self.output_dir = Path(output_dir)
         self.overrides_dir = Path(overrides_dir) if overrides_dir else self.base_dir / "overrides"
+        self.config_overrides_dir = (
+            Path(config_overrides_dir) if config_overrides_dir else self.base_dir / "config-overrides"
+        )
         self.subjects = []
         self.unit_themes = {}        # cache: "subject-unit" -> themes list
         self.moodle_activities = {}  # cache: "subject-unit" -> activities list
         self.moodle_urls = {}        # cache: "subject-unit" -> moodle URL
         self.dry_run = dry_run
         self.apply_overrides_enabled = apply_overrides
+        self.apply_config_overrides_enabled = apply_config_overrides
         self.reorganizer = FolderReorganizer()  # Reorganizador integrado
 
     # ─────────────────────────────────────────────
@@ -320,27 +333,41 @@ class HTMLModifier:
                     relative_path = d.relative_to(self.base_dir)
                     self.subjects.append(str(relative_path))
 
-    def iter_override_files(self, subject_name=None):
-        """Itera sobre archivos HTML de overrides."""
-        if not self.overrides_dir.exists():
+    @staticmethod
+    def _iter_files_in_subject_dir(base_dir, subject_name=None):
+        if not base_dir.exists():
             return
 
         if subject_name:
-            search_root = self.overrides_dir / Path(subject_name).name
+            search_root = base_dir / Path(subject_name).name
             if not search_root.exists():
                 return
+            search_roots = [search_root]
         else:
-            search_root = self.overrides_dir
+            search_roots = [entry for entry in sorted(base_dir.iterdir()) if entry.is_dir()]
 
-        for override_file in sorted(search_root.rglob("*.html")):
-            if override_file.is_file():
-                yield override_file
+        for search_root in search_roots:
+            for candidate in sorted(search_root.rglob("*")):
+                if candidate.is_file():
+                    yield candidate
+
+    def iter_override_files(self, subject_name=None):
+        """Itera sobre archivos de overrides dentro de carpetas de asignatura."""
+        yield from self._iter_files_in_subject_dir(self.overrides_dir, subject_name)
+
+    def iter_config_override_files(self, subject_name=None):
+        """Itera sobre archivos de config-overrides dentro de carpetas de asignatura."""
+        yield from self._iter_files_in_subject_dir(self.config_overrides_dir, subject_name)
 
     def list_overrides(self):
         """Devuelve lista de overrides configurados."""
         return [path.relative_to(self.overrides_dir) for path in self.iter_override_files()]
 
-    def normalize_override_relative_path(self, input_path):
+    def list_config_overrides(self):
+        """Devuelve lista de config-overrides configurados."""
+        return [path.relative_to(self.config_overrides_dir) for path in self.iter_config_override_files()]
+
+    def normalize_override_relative_path(self, input_path, shared_unit=False):
         """Normaliza una ruta fuente u output al formato relativo de overrides/output."""
         path = Path(input_path)
         parts = list(path.parts)
@@ -370,7 +397,8 @@ class HTMLModifier:
         if unit_index is None:
             raise ValueError("no se encontro carpeta de unidad (u1, u2, etc.)")
 
-        normalized_parts = [subject_name, parts[unit_index]]
+        normalized_unit = "_all-units" if shared_unit else parts[unit_index]
+        normalized_parts = [subject_name, normalized_unit]
         remainder = parts[unit_index + 1:]
 
         if remainder and remainder[0] == "build":
@@ -379,13 +407,10 @@ class HTMLModifier:
             remainder = remainder[1:]
 
         if not remainder:
-            raise ValueError("no se encontro la ruta interna del HTML")
+            raise ValueError("no se encontro la ruta interna del archivo")
 
         normalized_parts.extend(remainder)
         normalized_path = Path(*normalized_parts)
-
-        if normalized_path.suffix.lower() != ".html":
-            raise ValueError("solo se pueden usar archivos .html")
 
         return normalized_path
 
@@ -397,10 +422,27 @@ class HTMLModifier:
 
         overrides = self.list_overrides()
         if not overrides:
-            print(f"No se encontraron overrides HTML en {self.overrides_dir}")
+            print(f"No se encontraron overrides en {self.overrides_dir}")
             return 0
 
         print(f"Overrides encontrados en {self.overrides_dir}:")
+        for override in overrides:
+            print(f"  - {override}")
+        print(f"Total: {len(overrides)}")
+        return len(overrides)
+
+    def print_config_overrides(self):
+        """Imprime config-overrides disponibles."""
+        if not self.config_overrides_dir.exists():
+            print(f"No existe directorio de config-overrides: {self.config_overrides_dir}")
+            return 0
+
+        overrides = self.list_config_overrides()
+        if not overrides:
+            print(f"No se encontraron config-overrides en {self.config_overrides_dir}")
+            return 0
+
+        print(f"Config-overrides encontrados en {self.config_overrides_dir}:")
         for override in overrides:
             print(f"  - {override}")
         print(f"Total: {len(overrides)}")
@@ -417,7 +459,7 @@ class HTMLModifier:
         overrides = self.list_overrides()
 
         if not overrides:
-            print(f"No se encontraron overrides HTML en {self.overrides_dir}")
+            print(f"No se encontraron overrides en {self.overrides_dir}")
             return True
 
         is_valid = True
@@ -443,29 +485,125 @@ class HTMLModifier:
             print("Se encontraron overrides con problemas")
         return is_valid
 
-    def init_override(self, relative_file_path):
-        """Crea un override copiando un HTML desde output."""
+    def validate_config_overrides(self):
+        """Valida que los config-overrides apunten a asignaturas conocidas."""
+        if not self.config_overrides_dir.exists():
+            print(f"No existe directorio de config-overrides: {self.config_overrides_dir}")
+            return True
+
+        self.find_subjects()
+        known_subjects = {Path(subject).name for subject in self.subjects}
+        overrides = self.list_config_overrides()
+
+        if not overrides:
+            print(f"No se encontraron config-overrides en {self.config_overrides_dir}")
+            return True
+
+        is_valid = True
+        print("Validando config-overrides...")
+        for override in overrides:
+            parts = override.parts
+            if len(parts) < 4:
+                print(f"  ✗ Ruta incompleta: {override}")
+                is_valid = False
+                continue
+
+            subject_name = parts[0]
+            unit_name = parts[1]
+            if subject_name not in known_subjects:
+                print(f"  ✗ Asignatura no encontrada para config-override: {override}")
+                is_valid = False
+                continue
+
+            if unit_name != "_all-units" and not self.RE_UNIT_PATTERN.match(unit_name):
+                print(f"  ✗ Unidad invalida en config-override: {override}")
+                is_valid = False
+                continue
+
+            print(f"  ✓ {override}")
+
+        if is_valid:
+            print("Config-overrides validados correctamente")
+        else:
+            print("Se encontraron config-overrides con problemas")
+        return is_valid
+
+    def _init_override_file(self, relative_file_path, target_dir, shared_unit=False):
         try:
-            relative_path = self.normalize_override_relative_path(relative_file_path)
+            relative_path = self.normalize_override_relative_path(relative_file_path, shared_unit=shared_unit)
         except ValueError as error:
             print(f"Error: {error}")
             return False
 
-        source = self.output_dir / relative_path
+        source_relative_path = relative_path
+        if shared_unit and relative_path.parts[1] == "_all-units":
+            source_relative_path = Path(relative_path.parts[0], "u1", *relative_path.parts[2:])
+
+        source = self.output_dir / source_relative_path
         if not source.exists():
             print(f"Error: el archivo generado no existe: {source}")
             print("Primero genera el output y luego crea el override")
             return False
 
-        destination = self.overrides_dir / relative_path
+        if not source.is_file():
+            print(f"Error: la ruta no es un archivo: {source}")
+            return False
+
+        destination = target_dir / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
-        print(f"Override creado: {destination}")
+        print(f"Archivo de override creado: {destination}")
         print(f"Ruta normalizada: {relative_path}")
         return True
 
+    def init_override(self, relative_file_path):
+        """Crea un override copiando un archivo desde output."""
+        return self._init_override_file(relative_file_path, self.overrides_dir)
+
+    def init_config_override(self, relative_file_path, shared_unit=False):
+        """Crea un config-override copiando un archivo desde output."""
+        return self._init_override_file(relative_file_path, self.config_overrides_dir, shared_unit=shared_unit)
+
+    def apply_config_overrides_for_subject(self, output_path, subject):
+        """Aplica config-overrides antes de procesar HTML."""
+        if self.dry_run or not self.apply_config_overrides_enabled:
+            return 0
+
+        subject_base_name = Path(subject).name
+        subject_override_dir = self.config_overrides_dir / subject_base_name
+        if not subject_override_dir.exists():
+            return 0
+
+        applied_count = 0
+        unit_folders = [f.name for f in output_path.iterdir() if f.is_dir() and self.RE_UNIT_PATTERN.match(f.name)]
+        print(f"  ⚙ Aplicando config-overrides para {subject_base_name}...")
+
+        for override_file in self.iter_config_override_files(subject):
+            relative_path = override_file.relative_to(self.config_overrides_dir)
+            unit_name = relative_path.parts[1]
+
+            target_paths = []
+            if unit_name == "_all-units":
+                target_paths = [self.output_dir / relative_path.parts[0] / unit / Path(*relative_path.parts[2:]) for unit in unit_folders]
+            else:
+                target_paths = [self.output_dir / relative_path]
+
+            for target_file in target_paths:
+                if not target_file.exists():
+                    print(f"  ⚠ Config-override ignorado, no existe target: {target_file.relative_to(self.output_dir)}")
+                    continue
+
+                shutil.copy2(override_file, target_file)
+                print(f"  ✓ Config-override aplicado: {target_file.relative_to(self.output_dir)}")
+                applied_count += 1
+
+        if applied_count == 0:
+            print(f"  ℹ No se aplicaron config-overrides para {subject_base_name}")
+
+        return applied_count
+
     def apply_overrides_for_subject(self, subject):
-        """Aplica overrides HTML para una asignatura ya procesada."""
+        """Aplica overrides de archivos para una asignatura ya procesada."""
         if self.dry_run or not self.apply_overrides_enabled:
             return 0
 
@@ -490,7 +628,7 @@ class HTMLModifier:
             applied_count += 1
 
         if applied_count == 0:
-            print(f"  ℹ No se aplicaron overrides HTML para {subject_base_name}")
+            print(f"  ℹ No se aplicaron overrides para {subject_base_name}")
 
         return applied_count
         
@@ -1538,6 +1676,10 @@ class HTMLModifier:
             output_path = self.base_dir / subject
             print(f"  (DRY RUN: no se copia la asignatura)")
 
+        config_overrides_applied = self.apply_config_overrides_for_subject(output_path, subject)
+        if config_overrides_applied:
+            print(f"  ✅ Config-overrides aplicados: {config_overrides_applied}")
+
         html_files = self.find_html_files(output_path)
 
         # Clear cache for this subject
@@ -1611,27 +1753,59 @@ def main():
     )
     parser.add_argument(
         '--overrides-dir', default='overrides',
-        help='Directorio con overrides HTML relativos al proyecto (default: overrides/)'
+        help='Directorio con overrides de archivos relativos al proyecto (default: overrides/)'
+    )
+    parser.add_argument(
+        '--config-overrides-dir', default='config-overrides',
+        help='Directorio con config-overrides aplicados antes de procesar HTML (default: config-overrides/)'
     )
     parser.add_argument(
         '--no-overrides', action='store_true',
-        help='No aplicar overrides HTML después de generar archivos'
+        help='No aplicar overrides de archivos después de generar archivos'
+    )
+    parser.add_argument(
+        '--no-config-overrides', action='store_true',
+        help='No aplicar config-overrides antes de procesar HTML'
     )
     parser.add_argument(
         '--list-overrides', action='store_true',
-        help='Listar overrides HTML configurados y salir'
+        help='Listar overrides de archivos configurados y salir'
+    )
+    parser.add_argument(
+        '--list-config-overrides', action='store_true',
+        help='Listar config-overrides configurados y salir'
     )
     parser.add_argument(
         '--validate-overrides', action='store_true',
-        help='Validar la estructura de overrides HTML y salir'
+        help='Validar la estructura de overrides de archivos y salir'
+    )
+    parser.add_argument(
+        '--validate-config-overrides', action='store_true',
+        help='Validar la estructura de config-overrides y salir'
     )
     parser.add_argument(
         '--init-override',
-        help='Crear un override desde una ruta output o fuente, por ejemplo: mate3/u1/t1/1.html o asignaturas-produccion/biologia-1/u1/u1/t1/3.html'
+        help='Crear un override desde una ruta output o fuente, por ejemplo: mate3/u1/t1/1.html o asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js'
+    )
+    parser.add_argument(
+        '--init-config-override',
+        help='Crear un config-override desde una ruta output o fuente, por ejemplo: asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js'
+    )
+    parser.add_argument(
+        '--all-units', action='store_true',
+        help='Crear un config-override compartido en _all-units (ya es el default)'
+    )
+    parser.add_argument(
+        '--unit-specific', action='store_true',
+        help='Usar con --init-config-override para crear un config-override solo para una unidad'
     )
     parser.add_argument(
         '--resolve-override-path',
         help='Resolver una ruta fuente/output al path relativo de override y salir'
+    )
+    parser.add_argument(
+        '--resolve-config-override-path',
+        help='Resolver una ruta fuente/output al path relativo de config-override y salir'
     )
 
     args = parser.parse_args()
@@ -1639,11 +1813,15 @@ def main():
     base_dir = Path(args.directory).resolve()
     output_dir = Path(args.output).resolve()
     overrides_dir = Path(args.overrides_dir)
+    config_overrides_dir = Path(args.config_overrides_dir)
     if not overrides_dir.is_absolute():
         overrides_dir = (base_dir / overrides_dir).resolve()
+    if not config_overrides_dir.is_absolute():
+        config_overrides_dir = (base_dir / config_overrides_dir).resolve()
     print(f"Directorio base: {base_dir}")
     print(f"Directorio output: {output_dir}")
     print(f"Directorio overrides: {overrides_dir}")
+    print(f"Directorio config-overrides: {config_overrides_dir}")
 
     if not base_dir.exists():
         print(f"Error: El directorio base {base_dir} no existe")
@@ -1654,7 +1832,9 @@ def main():
         output_dir,
         dry_run=args.dry_run,
         overrides_dir=overrides_dir,
+        config_overrides_dir=config_overrides_dir,
         apply_overrides=not args.no_overrides,
+        apply_config_overrides=not args.no_config_overrides,
     )
 
     if args.list_overrides:
@@ -1666,14 +1846,38 @@ def main():
             sys.exit(1)
         return
 
+    if args.list_config_overrides:
+        modifier.print_config_overrides()
+        return
+
+    if args.validate_config_overrides:
+        if not modifier.validate_config_overrides():
+            sys.exit(1)
+        return
+
     if args.init_override:
         if not modifier.init_override(args.init_override):
+            sys.exit(1)
+        return
+
+    if args.init_config_override:
+        shared_unit = not args.unit_specific
+        if not modifier.init_config_override(args.init_config_override, shared_unit=shared_unit):
             sys.exit(1)
         return
 
     if args.resolve_override_path:
         try:
             print(modifier.normalize_override_relative_path(args.resolve_override_path))
+        except ValueError as error:
+            print(f"Error: {error}")
+            sys.exit(1)
+        return
+
+    if args.resolve_config_override_path:
+        try:
+            shared_unit = not args.unit_specific
+            print(modifier.normalize_override_relative_path(args.resolve_config_override_path, shared_unit=shared_unit))
         except ValueError as error:
             print(f"Error: {error}")
             sys.exit(1)

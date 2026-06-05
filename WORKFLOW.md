@@ -88,7 +88,7 @@ nano html_modifier_v2_navigation.py
 rm -rf out && python3 html_modifier_v2_navigation.py
 ```
 
-### 5. Editar contenido HTML sin perder cambios
+### 5. Editar contenido o archivos sin perder cambios
 
 ```bash
 # GENERA primero
@@ -106,6 +106,15 @@ python3 html_modifier_v2_navigation.py --init-override asignaturas-produccion/bi
 # helper que crea y abre el archivo
 ./override --edit asignaturas-produccion/biologia-1/u1/u1/t1/3.html
 
+# para archivos de config que afectan la compilacion
+./override --config --edit asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+
+# ese es el default: aplica a todas las unidades
+./override --config --all-units --edit asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+
+# si lo quieres solo para una unidad en particular
+./override --config --unit-specific --edit asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+
 # EDITA el override
 nano overrides/antropologia-1/u1/t1/3.html
 
@@ -113,9 +122,13 @@ nano overrides/antropologia-1/u1/t1/3.html
 rm -rf out && python3 html_modifier_v2_navigation.py
 ```
 
-El override reemplaza el HTML generado correspondiente al final del proceso.
+El override reemplaza el archivo generado correspondiente al final del proceso.
 No necesitas crear carpetas a mano: `--init-override` normaliza la ruta y crea toda la estructura en `overrides/`.
 Si quieres, `./override --generate ...` regenera `out/` antes de crear el override.
+
+Para archivos que alimentan la compilacion, como `activities_moodle.js` o JSON de navegacion, usa `config-overrides/` con `./override --config ...`.
+Esos archivos se aplican antes de procesar los HTML.
+Por default, `--config` los guarda en `_all-units` salvo que indiques `--unit-specific`.
 
 ---
 
@@ -127,7 +140,8 @@ Si quieres, `./override --generate ...` regenera `out/` antes de crear el overri
 
 ### ✅ SIEMPRE haz esto:
 - **Edita solo archivos en `/assets/`** o el script Python
-- **Para contenido HTML puntual, edita en `/overrides/`**
+- **Para contenido final, edita en `/overrides/`**
+- **Para archivos de config que afectan menus/actividades, edita en `/config-overrides/`**
 - **Regenera con el comando completo** después de editar
 - **Verifica cambios en `/out/`** abriendo un HTML en el navegador
 
