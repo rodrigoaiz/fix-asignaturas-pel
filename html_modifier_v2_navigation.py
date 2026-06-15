@@ -108,6 +108,11 @@ class FolderReorganizer:
         for item in sorted(source_path.iterdir()):
             destination = unit_folder / item.name
 
+            if item.is_dir() and item.name == unit_folder.name:
+                print(f"        → Aplanando {item.name} duplicado")
+                self.merge_directories(item, unit_folder)
+                continue
+
             if destination.exists():
                 if destination.is_dir():
                     self.merge_directories(item, destination)
@@ -133,8 +138,9 @@ class FolderReorganizer:
             # Limpiar build si está vacío
             self._safe_rmdir(build_folder)
 
-        # Limpiar carpeta fuente vacía
-        self._safe_rmdir(source_path)
+        # Limpiar la carpeta fuente duplicada dentro del output ya fusionado.
+        if source_path.exists():
+            shutil.rmtree(source_path)
 
         # Limpiar build padre si quedó vacío (tipo 1)
         if target_structure == "type1":
@@ -273,6 +279,37 @@ class HTMLModifier:
         self.apply_overrides_enabled = apply_overrides
         self.apply_config_overrides_enabled = apply_config_overrides
         self.reorganizer = FolderReorganizer()  # Reorganizador integrado
+
+    def resolve_subject(self, subject_name):
+        """Resuelve una asignatura por ruta relativa o por nombre base."""
+        requested = Path(subject_name)
+        forbidden_names = {
+            "",
+            ".",
+            "out",
+            "assets",
+            "docs",
+            "logo",
+            "override",
+            "overrides",
+            "config-overrides",
+            "asignaturas-muestra",
+            "asignaturas-produccion",
+        }
+
+        if str(subject_name).strip() in forbidden_names or requested.name in forbidden_names:
+            raise ValueError(f"'{subject_name}' no es una asignatura valida")
+
+        self.find_subjects()
+
+        for subject in self.subjects:
+            if subject == subject_name or Path(subject).name == subject_name:
+                return subject
+
+        known = ", ".join(Path(subject).name for subject in self.subjects[:12])
+        if len(self.subjects) > 12:
+            known += ", ..."
+        raise ValueError(f"asignatura no encontrada: {subject_name}. Disponibles: {known}")
 
     # ─────────────────────────────────────────────
     #  Copy & Setup
@@ -474,6 +511,12 @@ class HTMLModifier:
             subject_name = parts[0]
             if subject_name not in known_subjects:
                 print(f"  ✗ Asignatura no encontrada para override: {override}")
+                is_valid = False
+                continue
+
+            if override.name == "activities_moodle.js":
+                print(f"  ✗ Config en overrides: {override}")
+                print("    Usa config-overrides/ para archivos que alimentan la compilacion")
                 is_valid = False
                 continue
 
@@ -1888,8 +1931,14 @@ def main():
         output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.subject:
-        modifier.subjects = [args.subject]
-        modifier.process_subject(args.subject)
+        try:
+            subject = modifier.resolve_subject(args.subject)
+        except ValueError as error:
+            print(f"Error: {error}")
+            sys.exit(1)
+
+        modifier.subjects = [subject]
+        modifier.process_subject(subject)
     else:
         modifier.run()
 

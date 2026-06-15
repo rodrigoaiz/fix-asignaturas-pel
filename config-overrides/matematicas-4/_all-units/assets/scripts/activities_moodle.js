@@ -79,7 +79,6 @@ export const moodleActivities = [
     { idHTML: "u2a9", url: "mod/assign/view.php?id=", id: "1667" },
     // U2 T4
     { idHTML: "u2a10", url: "mod/forum/view.php?id=", id: "1669" },
-    // { idHTML: "u2a11", url: "mod/hvp/view.php?id=", id: "1769" }, //esta esta duplicada
     // U2 T5
     { idHTML: "u2a11", url: "mod/hvp/view.php?id=", id: "1671" },
     // U2 T6
