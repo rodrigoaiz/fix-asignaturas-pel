@@ -1,195 +1,233 @@
-# Scripts de Modificación Masiva de HTML
+# Scripts de modificacion masiva de HTML
 
-Este repositorio contiene scripts para realizar cambios masivos en archivos HTML de cursos académicos.
+Este repositorio genera una version reparada de las asignaturas en `out/`.
+Los archivos fuente no se editan durante la generacion.
 
-## Cambios que realizan los scripts
+## Comando recomendado
 
-Los scripts automatizan las siguientes modificaciones:
+Usa el script v2 para el flujo normal:
 
-1. **Eliminación de enlaces en breadcrumbs**: Quita las ligas del breadcrumb `course__header--breadcrumb` manteniendo solo el texto
-2. **Navegación corregida**: Arregla las flechas de navegación `course__content__nav` para continuar correctamente al siguiente tema/unidad
-3. **Nuevo menú de navegación**: Reemplaza `nav__menu` con un menú que navegue por unidades basado en `activities_moodle.js`
-4. **Conversión de actividades**: Cambia enlaces de actividades a iframes con `?theme=photo`
-5. **Fix URLs estáticas de Moodle** (nuevo): Limpia URLs hardcodeadas de Moodle en flechas de navegación cuando no hay página siguiente/anterior (ej. última página de la última unidad)
-6. **Arreglo de rutas CSS/JS** (nuevo): Corrige rutas `../../assets/` → `../assets/` tras reorganización de carpetas
-
-## Scripts disponibles
-
-### 1. Script de Python (Recomendado)
-
-**Archivo**: `html_modifier_simple.py`
-
-**Características**:
-- ✅ Funcionalidad completa
-- ✅ Manejo inteligente de la navegación basado en `activities_moodle.js`
-- ✅ Conversión automática de actividades a iframes
-- ✅ Solo usa librerías estándar de Python
-- ✅ Manejo robusto de errores
-- ✅ Regex compilados como constantes (más eficiente)
-- ✅ Caché de configuración por unidad (lee `activities_moodle.js` una sola vez)
-- ✅ Una sola pasada de lectura/escritura por archivo
-- ✅ Modo `--dry-run` para previsualizar cambios sin modificar archivos
-- ✅ Fix de URLs estáticas de Moodle en saltos de unidad
-
-**Uso**:
 ```bash
-# Procesar todas las asignaturas
+python3 html_modifier_v2_navigation.py
+```
+
+Ese comando procesa automaticamente las asignaturas que encuentre en:
+
+```text
+asignaturas-muestra/
+asignaturas-produccion/
+```
+
+El resultado queda en:
+
+```text
+out/<asignatura>/
+```
+
+No necesitas borrar `out/` antes: el script v2 limpia el output completo cuando se ejecuta sin `--subject`.
+
+## Procesar una sola asignatura
+
+Puedes pasar solo el nombre de la asignatura:
+
+```bash
+python3 html_modifier_v2_navigation.py --subject mate3
+python3 html_modifier_v2_navigation.py --subject matematicas-4
+```
+
+Tambien puedes pasar la ruta relativa completa:
+
+```bash
+python3 html_modifier_v2_navigation.py --subject asignaturas-muestra/mate3
+python3 html_modifier_v2_navigation.py --subject asignaturas-produccion/matematicas-4
+```
+
+Cuando usas `--subject`, el script solo recrea esa asignatura dentro de `out/`.
+
+## Previsualizar sin escribir cambios
+
+```bash
+python3 html_modifier_v2_navigation.py --dry-run
+python3 html_modifier_v2_navigation.py --dry-run --subject mate3
+```
+
+## Que hace el script v2
+
+1. Copia la asignatura fuente a `out/`.
+2. Reorganiza estructuras Moodle duplicadas, por ejemplo `u1/u1/t1/` a `u1/t1/`.
+3. Corrige rutas de assets despues de reorganizar.
+4. Copia `assets/pel-navigation.css`, `assets/pel-navigation.js` y `assets/logo-pel.svg` a cada unidad.
+5. Quita ligas del breadcrumb.
+6. Corrige flechas anterior/siguiente.
+7. Reemplaza la navegacion vieja por el sistema PEL v2.
+8. Convierte actividades Moodle en iframes con `?theme=photo`.
+9. Aplica `config-overrides/` antes de procesar HTML.
+10. Aplica `overrides/` al final.
+
+## Que script debo usar
+
+### `html_modifier_v2_navigation.py`
+
+Es el script principal. Usalo casi siempre.
+
+```bash
+python3 html_modifier_v2_navigation.py
+python3 html_modifier_v2_navigation.py --subject mate3
+```
+
+Incluye el nuevo diseno PEL, overrides, config-overrides, assets compartidos y reorganizacion de carpetas.
+
+### `html_modifier_simple.py`
+
+Es una version anterior sin el nuevo diseno PEL. Solo usala si necesitas las reparaciones basicas sin insertar la navegacion v2.
+
+```bash
 python3 html_modifier_simple.py
-
-# Procesar una asignatura específica
-python3 html_modifier_simple.py --subject derecho-1
-
-# Especificar directorio
-python3 html_modifier_simple.py /ruta/a/asignaturas
-
-# Ver ayuda
-python3 html_modifier_simple.py --help
+python3 html_modifier_simple.py --subject mate3
+python3 html_modifier_simple.py --dry-run --subject mate3
 ```
 
-### 2. Script de Bash (Versión simplificada)
+Tambien busca asignaturas dentro de `asignaturas-muestra/` y `asignaturas-produccion/`.
 
-**Archivo**: `html_modifier.sh`
+## Estructura esperada
 
-**Características**:
-- ✅ Muy rápido
-- ✅ Solo herramientas estándar de Linux
-- ⚠️ Funcionalidad limitada (solo breadcrumbs y eliminación de nav__menu)
-- ✅ Crea backups automáticos
-
-**Uso**:
-```bash
-# Procesar todas las asignaturas
-./html_modifier.sh
-
-# Procesar una asignatura específica
-./html_modifier.sh . derecho-1
-
-# Especificar directorio
-./html_modifier.sh /ruta/a/asignaturas
-
-# Ver ayuda
-./html_modifier.sh --help
+```text
+fix-asignaturas-pel/
+├── asignaturas-muestra/
+│   ├── antropologia-1/
+│   ├── derecho-1/
+│   └── mate3/
+├── asignaturas-produccion/
+│   └── matematicas-4/
+├── assets/
+│   ├── logo-pel.svg
+│   ├── pel-navigation.css
+│   └── pel-navigation.js
+├── config-overrides/
+├── overrides/
+├── html_modifier_v2_navigation.py
+├── html_modifier_simple.py
+└── out/
 ```
 
-## Estructura esperada del proyecto
+Las asignaturas pueden venir en formato ya plano:
 
-```
-base_directory/
-├── asignatura1/
-│   ├── u1/
-│   │   ├── assets/scripts/activities_moodle.js
-│   │   └── u1/t1/*.html
-│   ├── u2/
-│   │   ├── assets/scripts/activities_moodle.js
-│   │   └── u2/t1/*.html
-│   └── ...
-├── asignatura2/
-│   └── ...
-└── ...
+```text
+asignatura/u1/t1/1.html
 ```
 
-## Formato de `activities_moodle.js`
+o en formato Moodle duplicado:
 
-El archivo debe contener:
-
-```javascript
-export const unit_themes = [
-    {
-        unit: "u1",
-        themes: [
-            { themeName: "Nombre del tema", themeURL: "t1", pages: "17" }
-        ]
-    },
-    // ...
-];
-
-export const moodleActivities = [
-    { idHTML: "u1a1", url: "mod/quiz/view.php?id=", id: "2537" },
-    // ...
-];
+```text
+asignatura/u1/u1/t1/1.html
 ```
 
-## Ejemplos de uso
+El script v2 reorganiza el output para que quede plano en `out/`.
 
-### Caso de uso típico
+## Overrides de HTML
 
-Si tienes un directorio con asignaturas como `derecho-1` y `mate3`:
+No edites `out/` directamente. Si quieres cambiar un HTML final, crea un override:
 
 ```bash
-# Ir al directorio de trabajo
-cd /ruta/a/tus/asignaturas
-
-# Procesar todas las asignaturas (RECOMENDADO)
-python3 html_modifier_simple.py
-
-# O procesar solo una para probar
-python3 html_modifier_simple.py --subject derecho-1
+./override --edit out/mate3/u2/t3/1.html
 ```
 
-### Backup y recuperación
-
-**El script de Python no crea backups automáticos**, por lo que es recomendable hacer backup manual:
+Tambien funciona desde la ruta fuente:
 
 ```bash
-# Hacer backup de todo el directorio
-cp -r asignaturas asignaturas_backup
-
-# O usar git si ya está en un repositorio
-git add -A && git commit -m "Backup antes de modificar HTML"
+./override --edit asignaturas-muestra/mate3/u2/t3/1.html
 ```
 
-**El script de Bash sí crea backups automáticos** con extensión `.original`.
+Eso crea o abre:
 
-### Verificar cambios
+```text
+overrides/mate3/u2/t3/1.html
+```
 
-Después de ejecutar el script, puedes verificar los cambios:
+Despues regenera:
 
 ```bash
-# Ver diferencias en un archivo específico
-diff archivo.html.original archivo.html
-
-# Ver todos los archivos modificados (solo bash script)
-find . -name "*.original"
+python3 html_modifier_v2_navigation.py --subject mate3
 ```
 
-## Solución de problemas
+## Config-overrides
 
-### Error: "No module named 'bs4'"
+Si el archivo afecta la compilacion, no lo pongas en `overrides/`.
+Usa `config-overrides/`.
 
-El script de Python simple no requiere BeautifulSoup. Si usas el script `html_modifier.py` (versión completa), instala las dependencias:
+Ejemplos de archivos de config:
+
+- `activities_moodle.js`
+- JSON de navegacion
+- cualquier archivo que cambie menus, paginas o actividades
+
+Crear config-override compartido para todas las unidades:
 
 ```bash
-pip install beautifulsoup4
+./override --config --edit asignaturas-produccion/matematicas-4/u1/assets/scripts/activities_moodle.js
 ```
 
-### Error: "command not found: python3"
-
-Intenta con:
-```bash
-python html_modifier_simple.py
-```
-
-### Error de permisos
+Crear config-override solo para una unidad:
 
 ```bash
-chmod +x html_modifier_simple.py
-chmod +x html_modifier.sh
+./override --config --unit-specific --edit asignaturas-produccion/matematicas-4/u2/assets/scripts/activities_moodle.js
 ```
 
-### Archivos no encontrados
+## Validar overrides
 
-Verifica que estés en el directorio correcto y que la estructura de carpetas sea la esperada.
+```bash
+python3 html_modifier_v2_navigation.py --list-overrides
+python3 html_modifier_v2_navigation.py --list-config-overrides
+python3 html_modifier_v2_navigation.py --validate-overrides
+python3 html_modifier_v2_navigation.py --validate-config-overrides
+```
 
-## Contribuir
+El helper corto tambien lista y valida ambos:
 
-Para agregar nuevas funcionalidades o corregir errores:
+```bash
+./override --list
+./override --validate
+```
 
-1. Haz un fork del repositorio
-2. Crea una rama para tu feature
-3. Implementa los cambios
-4. Prueba con datos de ejemplo
-5. Envía un pull request
+## Verificar salida
 
-## Licencia
+Abre un HTML generado:
 
-Este script es de uso interno para modificación de contenidos académicos.
+```bash
+firefox out/mate3/u2/t3/1.html
+```
+
+O revisa la estructura:
+
+```bash
+find out/mate3 -maxdepth 3 -type f -name '*.html' | sort
+```
+
+## Errores comunes
+
+### `FileNotFoundError: .../mate3`
+
+Estabas usando un script que buscaba `mate3` directo en la raiz. Ahora ambos scripts resuelven `mate3` a `asignaturas-muestra/mate3`, pero si ves este error revisa que estes usando la version actual del repo.
+
+### Cambie `out/` y se perdio
+
+Es esperado. `out/` se regenera. Guarda cambios finales en `overrides/`.
+
+### Cambie `activities_moodle.js` y no afecto el menu
+
+Pon ese archivo en `config-overrides/`, no en `overrides/`.
+
+### El output copia carpetas raras como `out/out`
+
+No uses carpetas contenedoras como asignatura. Estos comandos son invalidos:
+
+```bash
+python3 html_modifier_v2_navigation.py --subject asignaturas-produccion
+python3 html_modifier_v2_navigation.py --subject out
+```
+
+Usa el nombre de la asignatura:
+
+```bash
+python3 html_modifier_v2_navigation.py --subject matematicas-4
+```

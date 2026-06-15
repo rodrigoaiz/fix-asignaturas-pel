@@ -86,10 +86,11 @@ class HTMLModifier:
     def prepare_output(self, subject_name):
         """Copia la asignatura base al directorio de output"""
         source = self.base_dir / subject_name
-        dest = self.output_dir / subject_name
+        subject_base_name = Path(subject_name).name
+        dest = self.output_dir / subject_base_name
 
         if dest.exists():
-            print(f"  ♻  {subject_name} ya existe en output, recreando...")
+            print(f"  ♻  {subject_base_name} ya existe en output, recreando...")
             shutil.rmtree(dest)
 
         shutil.copytree(source, dest)
@@ -97,13 +98,66 @@ class HTMLModifier:
         return dest
 
     def find_subjects(self):
-        """Encuentra todas las asignaturas en el directorio base"""
-        self.subjects = [
-            d.name for d in self.base_dir.iterdir()
-            if d.is_dir() and not d.name.startswith('.')
+        """Encuentra todas las asignaturas en las carpetas de muestra y producción"""
+        subject_folders = [
+            self.base_dir / 'asignaturas-muestra',
+            self.base_dir / 'asignaturas-produccion'
         ]
-        print(f"Encontradas asignaturas: {', '.join(self.subjects)}")
+
+        self.subjects = []
+
+        for folder in subject_folders:
+            if not folder.exists():
+                continue
+
+            for d in folder.iterdir():
+                if not d.is_dir() or d.name.startswith('.'):
+                    continue
+
+                has_units = any(
+                    sub.is_dir() and self.RE_UNIT_PATTERN.match(sub.name)
+                    for sub in d.iterdir()
+                )
+
+                if has_units:
+                    self.subjects.append(str(d.relative_to(self.base_dir)))
+
+        if self.subjects:
+            print(f"Encontradas asignaturas: {', '.join(self.subjects)}")
+        else:
+            print("⚠ No se encontraron asignaturas en asignaturas-muestra/ ni asignaturas-produccion/")
         return self.subjects
+
+    def resolve_subject(self, subject_name):
+        """Resuelve una asignatura por ruta relativa o por nombre base."""
+        requested = Path(subject_name)
+        forbidden_names = {
+            "",
+            ".",
+            "out",
+            "assets",
+            "docs",
+            "logo",
+            "override",
+            "overrides",
+            "config-overrides",
+            "asignaturas-muestra",
+            "asignaturas-produccion",
+        }
+
+        if str(subject_name).strip() in forbidden_names or requested.name in forbidden_names:
+            raise ValueError(f"'{subject_name}' no es una asignatura valida")
+
+        self.find_subjects()
+
+        for subject in self.subjects:
+            if subject == subject_name or Path(subject).name == subject_name:
+                return subject
+
+        known = ", ".join(Path(subject).name for subject in self.subjects[:12])
+        if len(self.subjects) > 12:
+            known += ", ..."
+        raise ValueError(f"asignatura no encontrada: {subject_name}. Disponibles: {known}")
 
     def find_html_files(self, subject_path):
         """Encuentra todos los archivos HTML en una asignatura"""
@@ -465,7 +519,8 @@ class HTMLModifier:
     def process_html_file(self, file_path, subject):
         """Procesa un archivo HTML individual — una sola pasada de lectura/escritura"""
         action = "PROCESARÍA" if self.dry_run else "Procesando"
-        print(f"  {action}: {file_path.relative_to(self.output_dir)}")
+        relative_base = self.base_dir if self.dry_run else self.output_dir
+        print(f"  {action}: {file_path.relative_to(relative_base)}")
 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -612,8 +667,14 @@ def main():
     modifier = HTMLModifier(base_dir, output_dir, dry_run=args.dry_run)
 
     if args.subject:
-        modifier.subjects = [args.subject]
-        modifier.process_subject(args.subject)
+        try:
+            subject = modifier.resolve_subject(args.subject)
+        except ValueError as error:
+            print(f"Error: {error}")
+            sys.exit(1)
+
+        modifier.subjects = [subject]
+        modifier.process_subject(subject)
     else:
         modifier.run()
 

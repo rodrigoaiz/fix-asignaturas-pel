@@ -1,115 +1,104 @@
 # Sistema de overrides
 
-Esta carpeta guarda archivos personalizados que sobrescriben el resultado generado en `out/`.
+`overrides/` guarda archivos finales que reemplazan el resultado generado en `out/`.
+
+Usa esta carpeta para cambios puntuales de HTML ya procesado.
 
 ## Regla base
 
-- No edites `out/` directamente.
-- Genera primero, luego crea un override del archivo que quieres ajustar.
-- La estructura dentro de `overrides/` debe coincidir con la de `out/`.
+- No edites `out/` como fuente de verdad.
+- Crea un override del archivo que quieres ajustar.
+- Edita el archivo dentro de `overrides/`.
+- Regenera con `html_modifier_v2_navigation.py`.
 
-## Flujo recomendado
+## Crear o abrir un override
 
-1. Genera el output normal:
+Desde un archivo generado:
 
 ```bash
-rm -rf out && python3 html_modifier_v2_navigation.py
+./override --edit out/mate3/u2/t3/1.html
 ```
 
-2. Crea el override desde el archivo generado o desde la ruta original:
+Desde un archivo fuente:
 
 ```bash
-python3 html_modifier_v2_navigation.py --init-override antropologia-1/u1/t1/3.html
-
-# tambien funciona con la ruta fuente original
-python3 html_modifier_v2_navigation.py --init-override asignaturas-produccion/biologia-1/u1/u1/t1/3.html
-
-# helper corto
-./override asignaturas-produccion/biologia-1/u1/u1/t1/3.html
-
-# para JS/JSON que alimentan la compilacion usa config-overrides
-./override --config asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+./override --edit asignaturas-muestra/mate3/u2/t3/1.html
+./override --edit asignaturas-produccion/matematicas-4/u3/u3/t1/3.html
 ```
 
-3. Edita el archivo en `overrides/`:
+El helper normaliza la ruta y crea algo como:
 
-```bash
-nano overrides/antropologia-1/u1/t1/3.html
+```text
+overrides/mate3/u2/t3/1.html
+overrides/matematicas-4/u3/t1/3.html
 ```
 
-4. Regenera para reaplicar todo y volver a copiar el override:
+## Regenerar despues de editar
+
+Para una asignatura:
 
 ```bash
-rm -rf out && python3 html_modifier_v2_navigation.py
+python3 html_modifier_v2_navigation.py --subject mate3
 ```
 
-## Comandos utiles
+Para todo:
 
 ```bash
-# Crear override y abrirlo en el editor
-./override --edit asignaturas-produccion/biologia-1/u1/u1/t1/3.html
+python3 html_modifier_v2_navigation.py
+```
 
-# Regenerar output y luego crear override
-./override --generate asignaturas-produccion/biologia-1/u1/u1/t1/3.html
+## Listar y validar
 
-# Listar overrides activos
+```bash
 ./override --list
-python3 html_modifier_v2_navigation.py --list-overrides
-
-# Validar estructura de overrides
 ./override --validate
-python3 html_modifier_v2_navigation.py --validate-overrides
-
-# Generar sin aplicar overrides
-python3 html_modifier_v2_navigation.py --no-overrides
 ```
 
-El comando `--init-override` crea automaticamente las carpetas necesarias dentro de `overrides/`.
-
-## Cuando usar config-overrides
-
-Si el archivo cambia menus, navegacion, paginas o actividades durante la compilacion, no uses `overrides/`.
-Usa `config-overrides/`.
-
-Ejemplos:
+Equivalentes directos:
 
 ```bash
-# por default va a _all-units
-./override --config asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
-
-# equivalente explicito
-./override --config --all-units asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
-
-# solo para una unidad
-./override --config --unit-specific asignaturas-produccion/biologia-1/u1/assets/scripts/activities_moodle.js
+python3 html_modifier_v2_navigation.py --list-overrides
+python3 html_modifier_v2_navigation.py --validate-overrides
 ```
 
-Eso crea rutas como:
+## Cuando no usar overrides
+
+No uses `overrides/` para archivos que alimentan la compilacion.
+
+Estos van en `config-overrides/`:
+
+- `activities_moodle.js`
+- JSON de navegacion
+- archivos que cambian menus
+- archivos que cambian paginas
+- archivos que cambian actividades
+
+Ejemplo correcto para `activities_moodle.js`:
+
+```bash
+./override --config --edit asignaturas-produccion/matematicas-4/u1/assets/scripts/activities_moodle.js
+```
+
+## Generar sin overrides
+
+Util para diagnosticar si un problema viene de un override:
+
+```bash
+python3 html_modifier_v2_navigation.py --subject mate3 --no-overrides
+```
+
+## Ejemplo
+
+Este archivo:
 
 ```text
-config-overrides/biologia-1/u1/assets/scripts/activities_moodle.js
-config-overrides/biologia-1/_all-units/assets/scripts/activities_moodle.js
+overrides/mate3/u2/t3/1.html
 ```
 
-Los archivos de `config-overrides/` se aplican antes de procesar los HTML.
-
-## Ejemplo de estructura
+reemplaza a:
 
 ```text
-overrides/
-└── antropologia-1/
-    └── u1/
-        └── t1/
-            └── 3.html
+out/mate3/u2/t3/1.html
 ```
 
-Ese archivo reemplaza a:
-
-```text
-out/antropologia-1/u1/t1/3.html
-```
-
-## Alcance actual
-
-- `overrides/` aplica cambios finales despues de generar
-- `config-overrides/` aplica archivos de config antes de generar
+al final de la generacion.
